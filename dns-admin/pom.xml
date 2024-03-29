@@ -37,11 +37,11 @@
             <version>5.20.0</version>
         </dependency>
 
-        <!-- 腾讯云短信 -->
+        <!-- 微信公众平台SDK -->
         <dependency>
-            <groupId>com.tencentcloudapi</groupId>
-            <artifactId>tencentcloud-sdk-java</artifactId>
-            <version>3.1.987</version>
+            <groupId>com.github.binarywang</groupId>
+            <artifactId>weixin-java-mp</artifactId>
+            <version>4.6.0</version>
         </dependency>
 
         <!-- swagger3-->

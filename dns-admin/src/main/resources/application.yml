@@ -16,7 +16,7 @@ dns:
 # 开发环境配置
 server:
   # 服务器的HTTP端口，默认为8080
-  port: 8080
+  port: 8888
   servlet:
     # 应用的访问路径
     context-path: /
@@ -137,3 +137,11 @@ rabbitmq:
   mq-server-authoritative-init-queue: admin-queue-1
   mq-server-authoritative-init-exchange: authoritative-init
   mq-server-authoritative-update-exchange: authoritative-update
+
+#微信
+wechat:
+  mp:
+    appid: wxc847fa7ecd48c9a2
+    secret: a453570a4602ec90eb7c93ec812f2494
+    token: 1314520x
+    aeskey: Pp9wOa2L4uutkJ3gw5oR5EgRB06oID2ae0rCiRt1NbV

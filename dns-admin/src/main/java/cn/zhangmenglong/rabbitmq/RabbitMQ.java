@@ -50,6 +50,8 @@ public class RabbitMQ {
                     try {
                         //Name name, int dclass, long ttl, Name host, Name admin, long serial, long refresh, long retry, long expire, long minimum
                         recordList.add(new SOARecord(new Name("zhangmenglong.cn."), DClass.IN, 600, new Name("ns1.zhangmenglong.cn."), new Name("domain@zhangmenglong.cn."), 600, 600, 600, 600, 600));
+                        //Name name, int dclass, long ttl, Name next, int[] types
+                        recordList.add(new NSECRecord(new Name("zhangmenglong.cn."), DClass.IN, 600, new Name("zhangmenglong.cn."), new int[]{Type.SOA}));
 
                         //Name name, int dclass, long ttl, Name target
                         recordList.add(new NSRecord(new Name("zhangmenglong.cn."), DClass.IN, 600, new Name("ns1.zhangmenglong.cn.")));
