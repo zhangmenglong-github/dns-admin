@@ -162,6 +162,13 @@
                 <version>${dns.version}</version>
             </dependency>
 
+            <!-- dns解析模块-->
+            <dependency>
+                <groupId>cn.zhangmenglong</groupId>
+                <artifactId>dns-platform</artifactId>
+                <version>${dns.version}</version>
+            </dependency>
+
         </dependencies>
     </dependencyManagement>
 
@@ -172,6 +179,7 @@
         <module>dns-quartz</module>
         <module>dns-generator</module>
         <module>dns-common</module>
+        <module>dns-platform</module>
     </modules>
     <packaging>pom</packaging>
 

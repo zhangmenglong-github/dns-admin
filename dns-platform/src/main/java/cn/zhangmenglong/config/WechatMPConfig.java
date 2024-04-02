@@ -1,4 +1,4 @@
-package cn.zhangmenglong.web.wechat;
+package cn.zhangmenglong.config;
 
 import me.chanjar.weixin.mp.api.WxMpService;
 import me.chanjar.weixin.mp.api.impl.WxMpServiceImpl;
