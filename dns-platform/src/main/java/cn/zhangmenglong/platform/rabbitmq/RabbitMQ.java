@@ -1,4 +1,4 @@
-package cn.zhangmenglong.rabbitmq;
+package cn.zhangmenglong.platform.rabbitmq;
 
 import com.rabbitmq.client.*;
 import com.rabbitmq.client.impl.DefaultExceptionHandler;

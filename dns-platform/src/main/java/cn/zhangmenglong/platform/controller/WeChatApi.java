@@ -1,8 +1,10 @@
-package cn.zhangmenglong.web.wechat;
+package cn.zhangmenglong.platform.controller;
 
 import cn.zhangmenglong.common.annotation.Anonymous;
 import cn.zhangmenglong.common.core.domain.entity.SysUser;
+import cn.zhangmenglong.common.core.redis.RedisCache;
 import cn.zhangmenglong.common.utils.uuid.IdUtils;
+import cn.zhangmenglong.platform.constant.PlatformUserRegisterConstants;
 import cn.zhangmenglong.system.service.ISysUserService;
 import me.chanjar.weixin.mp.api.WxMpService;
 import me.chanjar.weixin.mp.bean.message.WxMpXmlMessage;
@@ -10,7 +12,9 @@ import me.chanjar.weixin.mp.bean.message.WxMpXmlOutTextMessage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Base64;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 @Anonymous
 @RestController
@@ -22,10 +26,11 @@ public class WeChatApi {
     @Autowired
     private ISysUserService userService;
 
+    @Autowired
+    private RedisCache redisCache;
+
     @GetMapping(value = "/wechat/platform", produces = "application/xml; charset=UTF-8")
     public String getWechatServerPlatform(String signature, String timestamp, String nonce, String echostr) {
-        System.out.println(nonce);
-        System.out.println(echostr);
         if (wxMpService.checkSignature(timestamp, nonce, signature)) {
             return echostr;
         } else {
@@ -48,22 +53,32 @@ public class WeChatApi {
             inMessage = WxMpXmlMessage.fromEncryptedXml(requestBody, wxMpService.getWxMpConfigStorage(), timestamp, nonce, msgSignature);
         }
         if (inMessage.getEvent() == null) {
-            SysUser user = userService.selectUserByUserName(inMessage.getContent());
             WxMpXmlOutTextMessage wxMpXmlOutTextMessage = new WxMpXmlOutTextMessage();
             wxMpXmlOutTextMessage.setToUserName(inMessage.getFromUser());
             wxMpXmlOutTextMessage.setMsgType("text");
-            if (user == null) {
-                Random random = new Random();
-                int min = 100000;
-                int max = 999999;
-                int randomNumber = random.nextInt(max + 1 - min) + min;
-                wxMpXmlOutTextMessage.setContent("该用户名可注册，注册码为：" + randomNumber);
-            } else {
-                wxMpXmlOutTextMessage.setContent("该用户名不可注册，请重新输入");
-            }
-
             wxMpXmlOutTextMessage.setCreateTime(System.currentTimeMillis());
             wxMpXmlOutTextMessage.setFromUserName(inMessage.getToUser());
+            long WECHAT_REGISTER_ACCESS_CACHE = redisCache.redisTemplate.opsForValue().increment(PlatformUserRegisterConstants.WECHAT_REGISTER_ACCESS_CACHE + inMessage.getFromUser());
+            if (WECHAT_REGISTER_ACCESS_CACHE >= 10) {
+                wxMpXmlOutTextMessage.setContent("操作频繁，等待5分钟后再操作");
+            } else {
+                redisCache.expire(PlatformUserRegisterConstants.WECHAT_REGISTER_ACCESS_CACHE + inMessage.getFromUser(), 5, TimeUnit.MINUTES);
+                SysUser user = userService.selectUserByUserName(inMessage.getContent());
+                if (user == null) {
+                    if ((inMessage.getContent().length() >= 5) && (inMessage.getContent().length() <= 20)) {
+                        Random random = new Random();
+                        int min = 100000;
+                        int max = 999999;
+                        int randomNumber = random.nextInt(max + 1 - min) + min;
+                        redisCache.setCacheObject(PlatformUserRegisterConstants.WECHAT_REGISTER_USERNAME_CACHE + inMessage.getContent(), Base64.getEncoder().encodeToString(inMessage.getFromUser().getBytes()) + "&" + randomNumber, 5, TimeUnit.MINUTES);
+                        wxMpXmlOutTextMessage.setContent("该用户名可注册，注册码为：" + randomNumber + ",五分钟内有效");
+                    } else {
+                        wxMpXmlOutTextMessage.setContent("用户名长度应该在5-20个字符之间");
+                    }
+                } else {
+                    wxMpXmlOutTextMessage.setContent("该用户名不可注册，请重新输入");
+                }
+            }
             return wxMpXmlOutTextMessage.toEncryptedXml(wxMpService.getWxMpConfigStorage());
         } else if ("subscribe".contentEquals(inMessage.getEvent())) {
             WxMpXmlOutTextMessage wxMpXmlOutTextMessage = new WxMpXmlOutTextMessage();

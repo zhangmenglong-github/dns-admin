@@ -1,7 +1,7 @@
-package cn.zhangmenglong.init;
+package cn.zhangmenglong.platform.init;
 
 
-import cn.zhangmenglong.rabbitmq.RabbitMQ;
+import cn.zhangmenglong.platform.rabbitmq.RabbitMQ;
 import com.alibaba.fastjson2.JSON;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
