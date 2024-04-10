@@ -30,6 +30,7 @@ public class PlatformUserServiceImpl implements IPlatformUserService {
             String code = WECHAT_REGISTER_USERNAME_CACHE.split("&")[1];
             if (code.contentEquals(registerBody.getCode())) {
                 System.out.println(new String(Base64.getDecoder().decode(platformUserWechatOpenid)));
+                registerService.register()
                 return 0;
             } else {
                 return -1;
