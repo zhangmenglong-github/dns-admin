@@ -5,6 +5,8 @@ import cn.zhangmenglong.common.core.domain.entity.SysUser;
 import cn.zhangmenglong.common.core.redis.RedisCache;
 import cn.zhangmenglong.common.utils.uuid.IdUtils;
 import cn.zhangmenglong.platform.constant.PlatformUserRegisterConstants;
+import cn.zhangmenglong.platform.domain.DnsDomainNameWechatWithUser;
+import cn.zhangmenglong.platform.mapper.DnsDomainNameWechatWithUserMapper;
 import cn.zhangmenglong.system.service.ISysUserService;
 import me.chanjar.weixin.mp.api.WxMpService;
 import me.chanjar.weixin.mp.bean.message.WxMpXmlMessage;
@@ -25,6 +27,9 @@ public class WeChatApi {
 
     @Autowired
     private ISysUserService userService;
+
+    @Autowired
+    private DnsDomainNameWechatWithUserMapper dnsDomainNameWechatWithUserMapper;
 
     @Autowired
     private RedisCache redisCache;
@@ -60,23 +65,34 @@ public class WeChatApi {
             wxMpXmlOutTextMessage.setFromUserName(inMessage.getToUser());
             long WECHAT_REGISTER_ACCESS_CACHE = redisCache.redisTemplate.opsForValue().increment(PlatformUserRegisterConstants.WECHAT_REGISTER_ACCESS_CACHE + inMessage.getFromUser());
             if (WECHAT_REGISTER_ACCESS_CACHE >= 10) {
-                wxMpXmlOutTextMessage.setContent("操作频繁，等待5分钟后再操作");
+                wxMpXmlOutTextMessage.setContent("操作频繁，等待五分钟后再操作");
             } else {
                 redisCache.expire(PlatformUserRegisterConstants.WECHAT_REGISTER_ACCESS_CACHE + inMessage.getFromUser(), 5, TimeUnit.MINUTES);
-                SysUser user = userService.selectUserByUserName(inMessage.getContent());
-                if (user == null) {
-                    if ((inMessage.getContent().length() >= 5) && (inMessage.getContent().length() <= 20)) {
-                        Random random = new Random();
-                        int min = 100000;
-                        int max = 999999;
-                        int randomNumber = random.nextInt(max + 1 - min) + min;
-                        redisCache.setCacheObject(PlatformUserRegisterConstants.WECHAT_REGISTER_USERNAME_CACHE + inMessage.getContent(), Base64.getEncoder().encodeToString(inMessage.getFromUser().getBytes()) + "&" + randomNumber, 5, TimeUnit.MINUTES);
-                        wxMpXmlOutTextMessage.setContent("该用户名可注册，注册码为：" + randomNumber + ",五分钟内有效");
-                    } else {
-                        wxMpXmlOutTextMessage.setContent("用户名长度应该在5-20个字符之间");
-                    }
+                DnsDomainNameWechatWithUser dnsDomainNameWechatWithUser = dnsDomainNameWechatWithUserMapper.selectDnsDomainNameWechatWithUserByWechatMpOpenid(inMessage.getFromUser());
+                if (dnsDomainNameWechatWithUser != null) {
+                    SysUser sysUser = userService.selectUserById(dnsDomainNameWechatWithUser.getUserId());
+                    wxMpXmlOutTextMessage.setContent("该微信已注册用户，用户名为【" + sysUser.getUserName() + "】，如忘记密码，请输入并发送找回密码");
                 } else {
-                    wxMpXmlOutTextMessage.setContent("该用户名不可注册，请重新输入");
+                    String WECHAT_REGISTER_USERNAME_CACHE = redisCache.getCacheObject(PlatformUserRegisterConstants.WECHAT_REGISTER_USERNAME_CACHE + inMessage.getContent());
+                    if (WECHAT_REGISTER_USERNAME_CACHE != null) {
+                        wxMpXmlOutTextMessage.setContent("该用户名注册锁定中，请稍后再试");
+                    } else {
+                        SysUser user = userService.selectUserByUserName(inMessage.getContent());
+                        if (user == null) {
+                            if ((inMessage.getContent().length() >= 5) && (inMessage.getContent().length() <= 20)) {
+                                Random random = new Random();
+                                int min = 100000;
+                                int max = 999999;
+                                int randomNumber = random.nextInt(max + 1 - min) + min;
+                                redisCache.setCacheObject(PlatformUserRegisterConstants.WECHAT_REGISTER_USERNAME_CACHE + inMessage.getContent(), Base64.getEncoder().encodeToString(inMessage.getFromUser().getBytes()) + "&" + randomNumber, 5, TimeUnit.MINUTES);
+                                wxMpXmlOutTextMessage.setContent("该用户名可注册，注册码为：" + randomNumber + ",五分钟内有效");
+                            } else {
+                                wxMpXmlOutTextMessage.setContent("用户名长度应该在5-20个字符之间");
+                            }
+                        } else {
+                            wxMpXmlOutTextMessage.setContent("该用户名不可注册，请重新输入");
+                        }
+                    }
                 }
             }
             return wxMpXmlOutTextMessage.toEncryptedXml(wxMpService.getWxMpConfigStorage());

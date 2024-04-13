@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.zhangmenglong.platform.mapper.DnsDomainNameWechatWithUserMapper">
+    
+    <resultMap type="DnsDomainNameWechatWithUser" id="DnsDomainNameWechatWithUserResult">
+        <result property="wechatMpOpenid"    column="wechat_mp_openid"    />
+        <result property="userId"    column="user_id"    />
+    </resultMap>
+
+    <sql id="selectDnsDomainNameWechatWithUserVo">
+        select wechat_mp_openid, user_id from dns_domain_name_wechat_with_user
+    </sql>
+
+    <select id="selectDnsDomainNameWechatWithUser" parameterType="DnsDomainNameWechatWithUser" resultMap="DnsDomainNameWechatWithUserResult">
+        <include refid="selectDnsDomainNameWechatWithUserVo"/>
+        <where>  
+            <if test="wechatMpOpenid != null  and wechatMpOpenid != ''"> and wechat_mp_openid = #{wechatMpOpenid}</if>
+            <if test="userId != null "> and user_id = #{userId}</if>
+        </where>
+        limit 1
+    </select>
+    
+    <select id="selectDnsDomainNameWechatWithUserByWechatMpOpenid" parameterType="String" resultMap="DnsDomainNameWechatWithUserResult">
+        <include refid="selectDnsDomainNameWechatWithUserVo"/>
+        where wechat_mp_openid = #{wechatMpOpenid}
+    </select>
+
+    <select id="selectDnsDomainNameWechatWithUserByUserId" parameterType="String" resultMap="DnsDomainNameWechatWithUserResult">
+        <include refid="selectDnsDomainNameWechatWithUserVo"/>
+        where user_id = #{userId}
+    </select>
+        
+    <insert id="insertDnsDomainNameWechatWithUser" parameterType="DnsDomainNameWechatWithUser">
+        insert into dns_domain_name_wechat_with_user
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="wechatMpOpenid != null">wechat_mp_openid,</if>
+            <if test="userId != null">user_id,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="wechatMpOpenid != null">#{wechatMpOpenid},</if>
+            <if test="userId != null">#{userId},</if>
+         </trim>
+    </insert>
+
+    <update id="updateDnsDomainNameWechatWithUser" parameterType="DnsDomainNameWechatWithUser">
+        update dns_domain_name_wechat_with_user
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="userId != null">user_id = #{userId},</if>
+        </trim>
+        where wechat_mp_openid = #{wechatMpOpenid}
+    </update>
+
+    <delete id="deleteDnsDomainNameWechatWithUserByWechatMpOpenid" parameterType="String">
+        delete from dns_domain_name_wechat_with_user where wechat_mp_openid = #{wechatMpOpenid}
+    </delete>
+
+    <delete id="deleteDnsDomainNameWechatWithUserByWechatMpOpenids" parameterType="String">
+        delete from dns_domain_name_wechat_with_user where wechat_mp_openid in 
+        <foreach item="wechatMpOpenid" collection="array" open="(" separator="," close=")">
+            #{wechatMpOpenid}
+        </foreach>
+    </delete>
+</mapper>

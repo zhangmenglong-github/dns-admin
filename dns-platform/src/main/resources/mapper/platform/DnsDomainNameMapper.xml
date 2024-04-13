@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.zhangmenglong.platform.mapper.DnsDomainNameMapper">
+    
+    <resultMap type="DnsDomainName" id="DnsDomainNameResult">
+        <result property="id"    column="id"    />
+        <result property="domainName"    column="domain_name"    />
+        <result property="domainNameDnssec"    column="domain_name_dnssec"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+    </resultMap>
+
+    <sql id="selectDnsDomainNameVo">
+        select id, domain_name, domain_name_dnssec, create_time, update_time from dns_domain_name
+    </sql>
+
+    <select id="selectDnsDomainNameList" parameterType="DnsDomainName" resultMap="DnsDomainNameResult">
+        <include refid="selectDnsDomainNameVo"/>
+        <where>  
+            <if test="domainName != null  and domainName != ''"> and domain_name like concat('%', #{domainName}, '%')</if>
+            <if test="domainNameDnssec != null "> and domain_name_dnssec = #{domainNameDnssec}</if>
+        </where>
+    </select>
+    
+    <select id="selectDnsDomainNameById" parameterType="Long" resultMap="DnsDomainNameResult">
+        <include refid="selectDnsDomainNameVo"/>
+        where id = #{id}
+    </select>
+
+    <select id="selectDnsDomainNameByName" parameterType="String" resultMap="DnsDomainNameResult">
+        <include refid="selectDnsDomainNameVo"/>
+        where domain_name = #{domainName} limit 1
+    </select>
+        
+    <insert id="insertDnsDomainName" parameterType="DnsDomainName" useGeneratedKeys="true" keyProperty="id">
+        insert into dns_domain_name
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="domainName != null and domainName != ''">domain_name,</if>
+            <if test="domainNameDnssec != null">domain_name_dnssec,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateTime != null">update_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="domainName != null and domainName != ''">#{domainName},</if>
+            <if test="domainNameDnssec != null">#{domainNameDnssec},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+         </trim>
+    </insert>
+
+    <update id="updateDnsDomainName" parameterType="DnsDomainName">
+        update dns_domain_name
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="domainName != null and domainName != ''">domain_name = #{domainName},</if>
+            <if test="domainNameDnssec != null">domain_name_dnssec = #{domainNameDnssec},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteDnsDomainNameById" parameterType="Long">
+        delete from dns_domain_name where id = #{id}
+    </delete>
+
+    <delete id="deleteDnsDomainNameByIds" parameterType="String">
+        delete from dns_domain_name where id in 
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>
