@@ -30,6 +30,10 @@ public class DnsDomainNameRecord extends BaseEntity
     @Excel(name = "记录类型")
     private String recordType;
 
+    /** 记录类型 */
+    @Excel(name = "记录地理位置")
+    private String recordGeo;
+
     /** 记录TTL */
     @Excel(name = "记录TTL")
     private Long recordTtl;
@@ -74,7 +78,16 @@ public class DnsDomainNameRecord extends BaseEntity
     {
         return recordType;
     }
-    public void setRecordTtl(Long recordTtl) 
+
+    public void setRecordGeo(String recordGeo) {
+        this.recordGeo = recordGeo;
+    }
+
+    public String getRecordGeo() {
+        return recordGeo;
+    }
+
+    public void setRecordTtl(Long recordTtl)
     {
         this.recordTtl = recordTtl;
     }
@@ -100,6 +113,7 @@ public class DnsDomainNameRecord extends BaseEntity
             .append("domainNameId", getDomainNameId())
             .append("recordName", getRecordName())
             .append("recordType", getRecordType())
+            .append("recordGeo", getRecordGeo())
             .append("recordTtl", getRecordTtl())
             .append("recordContent", getRecordContent())
             .toString();

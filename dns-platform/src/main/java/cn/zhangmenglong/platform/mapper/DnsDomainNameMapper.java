@@ -12,6 +12,14 @@ import cn.zhangmenglong.platform.domain.po.DnsDomainName;
 public interface DnsDomainNameMapper 
 {
     /**
+     * 更新域名状态
+     *
+     * @param dnsDomainName 域名
+     * @return 域名
+     */
+    public int updateDnsDomainNameStatusByName(DnsDomainName dnsDomainName);
+
+    /**
      * 查询域名
      * 
      * @param id 域名主键
@@ -22,10 +30,18 @@ public interface DnsDomainNameMapper
     /**
      * 查询域名
      *
-     * @param name 域名
+     * @param dnsDomainName 域名
      * @return 域名
      */
-    public DnsDomainName selectDnsDomainNameByName(String name);
+    public DnsDomainName selectDnsDomainNameByNameAndUserId(DnsDomainName dnsDomainName);
+
+    /**
+     * 查询域名列表
+     *
+     * @param dnsDomainName 域名
+     * @return 域名集合
+     */
+    public List<DnsDomainName> selectDnsDomainNameByName(DnsDomainName dnsDomainName);
 
     /**
      * 查询域名列表

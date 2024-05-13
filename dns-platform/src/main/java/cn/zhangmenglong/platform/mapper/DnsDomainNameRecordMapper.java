@@ -21,6 +21,14 @@ public interface DnsDomainNameRecordMapper
 
     /**
      * 查询域名记录列表
+     *
+     * @param dnsDomainNameRecord 域名记录
+     * @return 域名记录集合
+     */
+    public List<DnsDomainNameRecord> selectDnsDomainNameRecordByDomainNameId(DnsDomainNameRecord dnsDomainNameRecord);
+
+    /**
+     * 查询域名记录列表
      * 
      * @param dnsDomainNameRecord 域名记录
      * @return 域名记录集合

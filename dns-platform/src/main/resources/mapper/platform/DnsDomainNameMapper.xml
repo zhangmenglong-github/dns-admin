@@ -6,21 +6,31 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     
     <resultMap type="DnsDomainName" id="DnsDomainNameResult">
         <result property="id"    column="id"    />
+        <result property="userId"    column="user_id"    />
         <result property="domainName"    column="domain_name"    />
         <result property="domainNameDnssec"    column="domain_name_dnssec"    />
+        <result property="domainNameDnssecKskPrivateKey"    column="domain_name_dnssec_ksk_private_key"    />
+        <result property="domainNameDnssecKskPublicKey"    column="domain_name_dnssec_ksk_public_key"    />
+        <result property="domainNameDnssecZskPrivateKey"    column="domain_name_dnssec_zsk_private_key"    />
+        <result property="domainNameDnssecZskPublicKey"    column="domain_name_dnssec_zsk_public_key"    />
+        <result property="domainNameDnssecDsKeyTag"    column="domain_name_dnssec_ds_key_tag"    />
+        <result property="domainNameDnssecDsDigestValue"    column="domain_name_dnssec_ds_digest_value"    />
+        <result property="domainNameStatus"    column="domain_name_status"    />
         <result property="createTime"    column="create_time"    />
         <result property="updateTime"    column="update_time"    />
     </resultMap>
 
     <sql id="selectDnsDomainNameVo">
-        select id, domain_name, domain_name_dnssec, create_time, update_time from dns_domain_name
+        select id, user_id, domain_name, domain_name_dnssec, domain_name_dnssec_ksk_private_key, domain_name_dnssec_ksk_public_key, domain_name_dnssec_zsk_private_key, domain_name_dnssec_zsk_public_key, domain_name_dnssec_ds_key_tag, domain_name_dnssec_ds_digest_value, domain_name_status, create_time, update_time from dns_domain_name
     </sql>
 
     <select id="selectDnsDomainNameList" parameterType="DnsDomainName" resultMap="DnsDomainNameResult">
         <include refid="selectDnsDomainNameVo"/>
-        <where>  
+        <where>
+            <if test="userId != null"> and user_id = #{userId}</if>
             <if test="domainName != null  and domainName != ''"> and domain_name like concat('%', #{domainName}, '%')</if>
-            <if test="domainNameDnssec != null "> and domain_name_dnssec = #{domainNameDnssec}</if>
+            <if test="domainNameDnssec != null"> and domain_name_dnssec = #{domainNameDnssec}</if>
+            <if test="domainNameStatus != null and domainNameStatus != ''"> and domain_name_status = #{domainNameStatus}</if>
         </where>
     </select>
     
@@ -29,22 +39,43 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where id = #{id}
     </select>
 
-    <select id="selectDnsDomainNameByName" parameterType="String" resultMap="DnsDomainNameResult">
+    <select id="selectDnsDomainNameByName" parameterType="DnsDomainName" resultMap="DnsDomainNameResult">
         <include refid="selectDnsDomainNameVo"/>
-        where domain_name = #{domainName} limit 1
+        where domain_name = #{domainName}
+    </select>
+
+    <select id="selectDnsDomainNameByNameAndUserId" parameterType="DnsDomainName" resultMap="DnsDomainNameResult">
+        <include refid="selectDnsDomainNameVo"/>
+        where domain_name = #{domainName} and user_id = #{userId} limit 1
     </select>
         
     <insert id="insertDnsDomainName" parameterType="DnsDomainName" useGeneratedKeys="true" keyProperty="id">
         insert into dns_domain_name
         <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="userId != null">user_id,</if>
             <if test="domainName != null and domainName != ''">domain_name,</if>
             <if test="domainNameDnssec != null">domain_name_dnssec,</if>
+            <if test="domainNameDnssecKskPrivateKey != null and domainNameDnssecKskPrivateKey != ''">domain_name_dnssec_ksk_private_key,</if>
+            <if test="domainNameDnssecKskPublicKey != null and domainNameDnssecKskPublicKey != ''">domain_name_dnssec_ksk_public_key,</if>
+            <if test="domainNameDnssecZskPrivateKey != null and domainNameDnssecZskPrivateKey != ''">domain_name_dnssec_zsk_private_key,</if>
+            <if test="domainNameDnssecZskPublicKey != null and domainNameDnssecZskPublicKey != ''">domain_name_dnssec_zsk_public_key,</if>
+            <if test="domainNameDnssecDsKeyTag != null and domainNameDnssecDsKeyTag != ''">domain_name_dnssec_ds_key_tag,</if>
+            <if test="domainNameDnssecDsDigestValue != null and domainNameDnssecDsDigestValue != ''">domain_name_dnssec_ds_digest_value,</if>
+            <if test="domainNameStatus != null and domainNameStatus != ''">domain_name_status,</if>
             <if test="createTime != null">create_time,</if>
             <if test="updateTime != null">update_time,</if>
          </trim>
         <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="userId != null">#{userId},</if>
             <if test="domainName != null and domainName != ''">#{domainName},</if>
             <if test="domainNameDnssec != null">#{domainNameDnssec},</if>
+            <if test="domainNameDnssecKskPrivateKey != null and domainNameDnssecKskPrivateKey != ''">#{domainNameDnssecKskPrivateKey},</if>
+            <if test="domainNameDnssecKskPublicKey != null and domainNameDnssecKskPublicKey != ''">#{domainNameDnssecKskPublicKey},</if>
+            <if test="domainNameDnssecZskPrivateKey != null and domainNameDnssecZskPrivateKey != ''">#{domainNameDnssecZskPrivateKey},</if>
+            <if test="domainNameDnssecZskPublicKey != null and domainNameDnssecZskPublicKey != ''">#{domainNameDnssecZskPublicKey},</if>
+            <if test="domainNameDnssecDsKeyTag != null and domainNameDnssecDsKeyTag != ''">#{domainNameDnssecDsKeyTag},</if>
+            <if test="domainNameDnssecDsDigestValue != null and domainNameDnssecDsDigestValue != ''">#{domainNameDnssecDsDigestValue},</if>
+            <if test="domainNameStatus != null and domainNameStatus != ''">#{domainNameStatus},</if>
             <if test="createTime != null">#{createTime},</if>
             <if test="updateTime != null">#{updateTime},</if>
          </trim>
@@ -55,10 +86,21 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <trim prefix="SET" suffixOverrides=",">
             <if test="domainName != null and domainName != ''">domain_name = #{domainName},</if>
             <if test="domainNameDnssec != null">domain_name_dnssec = #{domainNameDnssec},</if>
+            <if test="domainNameDnssecKskPrivateKey != null and domainNameDnssecKskPrivateKey != ''">domain_name_dnssec_ksk_private_key = #{domainNameDnssecKskPrivateKey},</if>
+            <if test="domainNameDnssecKskPublicKey != null and domainNameDnssecKskPublicKey != ''">domain_name_dnssec_ksk_public_key = #{domainNameDnssecKskPublicKey},</if>
+            <if test="domainNameDnssecZskPrivateKey != null and domainNameDnssecZskPrivateKey != ''">domain_name_dnssec_zsk_private_key = #{domainNameDnssecZskPrivateKey},</if>
+            <if test="domainNameDnssecZskPublicKey != null and domainNameDnssecZskPublicKey != ''">domain_name_dnssec_zsk_public_key = #{domainNameDnssecZskPublicKey},</if>
+            <if test="domainNameDnssecDsKeyTag != null and domainNameDnssecDsKeyTag != ''">domain_name_dnssec_ds_key_tag = #{domainNameDnssecDsKeyTag},</if>
+            <if test="domainNameDnssecDsDigestValue != null and domainNameDnssecDsDigestValue != ''">domain_name_dnssec_ds_digest_value = #{domainNameDnssecDsDigestValue},</if>
+            <if test="domainNameStatus != null and domainNameStatus != ''">domain_name_status = #{domainNameStatus},</if>
             <if test="createTime != null">create_time = #{createTime},</if>
             <if test="updateTime != null">update_time = #{updateTime},</if>
         </trim>
         where id = #{id}
+    </update>
+
+    <update id="updateDnsDomainNameStatusByName" parameterType="DnsDomainName">
+        update dns_domain_name set domain_name_status = #{domainNameStatus} where domain_name = #{domainName}
     </update>
 
     <delete id="deleteDnsDomainNameById" parameterType="Long">

@@ -1,6 +1,8 @@
 package cn.zhangmenglong.platform.service;
 
 import java.util.List;
+import java.util.Map;
+
 import cn.zhangmenglong.platform.domain.po.DnsDomainName;
 
 /**
@@ -11,6 +13,15 @@ import cn.zhangmenglong.platform.domain.po.DnsDomainName;
  */
 public interface IDnsDomainNameService 
 {
+
+    /**
+     * 查询域名
+     *
+     * @param dnsDomainName 域名
+     * @return 域名
+     */
+    public Map<String, Object> validateDnsDomainName(DnsDomainName dnsDomainName);
+
     /**
      * 查询域名
      * 
@@ -33,15 +44,22 @@ public interface IDnsDomainNameService
      * @param dnsDomainName 域名
      * @return 结果
      */
-    public int insertDnsDomainName(DnsDomainName dnsDomainName);
+    public Map<String, Object> insertDnsDomainName(DnsDomainName dnsDomainName);
 
     /**
-     * 修改域名
+     * 修改域名DNSSEC
      * 
      * @param dnsDomainName 域名
      * @return 结果
      */
-    public int updateDnsDomainName(DnsDomainName dnsDomainName);
+    public Map<String, Object> updateDnsDomainNameDnssec(DnsDomainName dnsDomainName);
+
+    /**
+     * 修改域名
+     *
+     * @param dnsDomainName 域名
+     */
+    public void updateDnsDomainName(DnsDomainName dnsDomainName);
 
     /**
      * 批量删除域名

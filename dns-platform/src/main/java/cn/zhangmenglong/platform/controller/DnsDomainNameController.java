@@ -77,7 +77,18 @@ public class DnsDomainNameController extends BaseController
     @PostMapping
     public AjaxResult add(@RequestBody DnsDomainName dnsDomainName)
     {
-        return toAjax(dnsDomainNameService.insertDnsDomainName(dnsDomainName));
+        return AjaxResult.success(dnsDomainNameService.insertDnsDomainName(dnsDomainName));
+    }
+
+    /**
+     * 新增域名
+     */
+    @PreAuthorize("@ss.hasPermi('platform:dnsDomainName:add')")
+    @Log(title = "域名", businessType = BusinessType.INSERT)
+    @PutMapping("/validate")
+    public AjaxResult validate(@RequestBody DnsDomainName dnsDomainName)
+    {
+        return AjaxResult.success(dnsDomainNameService.validateDnsDomainName(dnsDomainName));
     }
 
     /**
@@ -85,10 +96,10 @@ public class DnsDomainNameController extends BaseController
      */
     @PreAuthorize("@ss.hasPermi('platform:dnsDomainName:edit')")
     @Log(title = "域名", businessType = BusinessType.UPDATE)
-    @PutMapping
-    public AjaxResult edit(@RequestBody DnsDomainName dnsDomainName)
+    @PutMapping("/dnssec")
+    public AjaxResult dnssec(@RequestBody DnsDomainName dnsDomainName)
     {
-        return toAjax(dnsDomainNameService.updateDnsDomainName(dnsDomainName));
+        return AjaxResult.success(dnsDomainNameService.updateDnsDomainNameDnssec(dnsDomainName));
     }
 
     /**
