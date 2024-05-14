@@ -60,10 +60,26 @@ public interface DnsDomainNameRecordMapper
     public int deleteDnsDomainNameRecordById(Long id);
 
     /**
+     * 删除域名记录
+     *
+     * @param id 域名主键
+     * @return 结果
+     */
+    public int deleteDnsDomainNameRecordByDomainNameId(Long id);
+
+    /**
      * 批量删除域名记录
      * 
      * @param ids 需要删除的数据主键集合
      * @return 结果
      */
     public int deleteDnsDomainNameRecordByIds(Long[] ids);
+
+    /**
+     * 批量删除域名记录
+     *
+     * @param ids 需要删除的数据主键集合
+     * @return 结果
+     */
+    public int deleteDnsDomainNameRecordByDomainNameIds(Long[] ids);
 }

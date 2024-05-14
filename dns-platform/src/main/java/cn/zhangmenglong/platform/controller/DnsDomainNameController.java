@@ -2,6 +2,8 @@ package cn.zhangmenglong.platform.controller;
 
 import java.util.List;
 import javax.servlet.http.HttpServletResponse;
+
+import cn.zhangmenglong.common.utils.SecurityUtils;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -54,19 +56,10 @@ public class DnsDomainNameController extends BaseController
     @PostMapping("/export")
     public void export(HttpServletResponse response, DnsDomainName dnsDomainName)
     {
+        dnsDomainName.setUserId(SecurityUtils.getUserId());
         List<DnsDomainName> list = dnsDomainNameService.selectDnsDomainNameList(dnsDomainName);
         ExcelUtil<DnsDomainName> util = new ExcelUtil<DnsDomainName>(DnsDomainName.class);
         util.exportExcel(response, list, "域名数据");
-    }
-
-    /**
-     * 获取域名详细信息
-     */
-    @PreAuthorize("@ss.hasPermi('platform:dnsDomainName:query')")
-    @GetMapping(value = "/{id}")
-    public AjaxResult getInfo(@PathVariable("id") Long id)
-    {
-        return success(dnsDomainNameService.selectDnsDomainNameById(id));
     }
 
     /**
@@ -81,14 +74,25 @@ public class DnsDomainNameController extends BaseController
     }
 
     /**
-     * 新增域名
+     * 验证域名
      */
-    @PreAuthorize("@ss.hasPermi('platform:dnsDomainName:add')")
-    @Log(title = "域名", businessType = BusinessType.INSERT)
+    @PreAuthorize("@ss.hasPermi('platform:dnsDomainName:edit')")
+    @Log(title = "域名", businessType = BusinessType.UPDATE)
     @PutMapping("/validate")
     public AjaxResult validate(@RequestBody DnsDomainName dnsDomainName)
     {
         return AjaxResult.success(dnsDomainNameService.validateDnsDomainName(dnsDomainName));
+    }
+
+    /**
+     * 刷新域名验证
+     */
+    @PreAuthorize("@ss.hasPermi('platform:dnsDomainName:edit')")
+    @Log(title = "域名", businessType = BusinessType.UPDATE)
+    @PutMapping("/validate/refresh")
+    public AjaxResult validateRefresh(@RequestBody DnsDomainName dnsDomainName)
+    {
+        return AjaxResult.success(dnsDomainNameService.validateRefreshDnsDomainName(dnsDomainName));
     }
 
     /**
@@ -110,6 +114,6 @@ public class DnsDomainNameController extends BaseController
 	@DeleteMapping("/{ids}")
     public AjaxResult remove(@PathVariable Long[] ids)
     {
-        return toAjax(dnsDomainNameService.deleteDnsDomainNameByIds(ids));
+        return AjaxResult.success(dnsDomainNameService.deleteDnsDomainNameByIds(ids));
     }
 }

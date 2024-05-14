@@ -68,13 +68,14 @@ public class DnsDomainNameUtils {
         }
     }
 
-    public void transformZone(DnsDomainName dnsDomainName) throws NoSuchAlgorithmException, InvalidKeySpecException, IOException, DNSSEC.DNSSECException {
+    public void transformZone(DnsDomainName dnsDomainName, String queue) throws NoSuchAlgorithmException, InvalidKeySpecException, IOException, DNSSEC.DNSSECException {
         DnsDomainNameRecord dnsDomainNameRecord = new DnsDomainNameRecord();
         dnsDomainNameRecord.setDomainNameId(dnsDomainName.getId());
         List<DnsDomainNameRecord> dnsDomainNameRecordList = dnsDomainNameRecordMapper.selectDnsDomainNameRecordByDomainNameId(dnsDomainNameRecord);
         Map<String, Object> zoneMap = new HashMap<>();
         zoneMap.put("domain", dnsDomainName.getDomainName());
         zoneMap.put("dnssec", dnsDomainName.getDomainNameDnssec());
+        zoneMap.put("type", "update");
         Map<String, List<Record>> geoZone = new HashMap<>();
         for (DnsDomainNameRecord dnsDomainNameRecordTemp : dnsDomainNameRecordList) {
             List<Record> recordList = geoZone.get(dnsDomainNameRecordTemp.getRecordGeo());
@@ -108,8 +109,21 @@ public class DnsDomainNameUtils {
         ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
         objectOutputStream.writeObject(zoneMap);
 
-        rabbitMQ.send(byteArrayOutputStream.toByteArray());
+        rabbitMQ.send(byteArrayOutputStream.toByteArray(), queue);
 
     }
+
+    public void deleteZone(DnsDomainName dnsDomainName) throws NoSuchAlgorithmException, InvalidKeySpecException, IOException, DNSSEC.DNSSECException {
+        Map<String, Object> zoneMap = new HashMap<>();
+        zoneMap.put("domain", dnsDomainName.getDomainName());
+        zoneMap.put("type", "delete");
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
+        objectOutputStream.writeObject(zoneMap);
+        rabbitMQ.send(byteArrayOutputStream.toByteArray(), "");
+
+    }
+
+
 
 }

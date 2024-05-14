@@ -30,6 +30,12 @@
             <version>5.20.0</version>
         </dependency>
 
+        <!-- mongodb-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-mongodb</artifactId>
+        </dependency>
+
         <!-- 微信公众平台SDK -->
         <dependency>
             <groupId>com.github.binarywang</groupId>

@@ -1,8 +1,5 @@
 package cn.zhangmenglong.platform.service.impl;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.net.IDN;
 import java.security.*;
 import java.security.interfaces.ECPrivateKey;
@@ -58,6 +55,77 @@ public class DnsDomainNameServiceImpl implements IDnsDomainNameService
     @Autowired
     private RabbitMQ rabbitMQ;
 
+
+    @Override
+    public Map<String, Object> validateRefreshDnsDomainName(DnsDomainName dnsDomainName) {
+        Map<String, Object> result = new HashMap<>();
+        //添加的域名名称不为空
+        if (StringUtils.isNotEmpty(dnsDomainName.getDomainName())) {
+            //将域名中的中文。替换为.
+            dnsDomainName.setDomainName(dnsDomainName.getDomainName().replaceAll("。", "."));
+            //将域名结尾替换为.
+            dnsDomainName.setDomainName(dnsDomainName.getDomainName().endsWith(".") ? dnsDomainName.getDomainName() : dnsDomainName.getDomainName() + ".");
+            //将域名分割为不同段落
+            String[] dnsDomainNameSection = dnsDomainName.getDomainName().split("\\.");
+            //储存punycode后的域名
+            StringBuilder domainNameBuilder = new StringBuilder();
+            try {
+                for (String nameSection : dnsDomainNameSection) {
+                    domainNameBuilder.append(IDN.toASCII(nameSection)).append(".");
+                }
+                if (!domainNameBuilder.toString().matches("^[.a-zA-Z0-9_-]+$")) {
+                    throw new RuntimeException();
+                }
+            } catch (Exception exception) {
+                result.put("code", -1);
+                result.put("message", "操作失败");
+                return result;
+            }
+
+            //将域名设置为punycode后的域名
+            dnsDomainName.setDomainName(domainNameBuilder.toString().toLowerCase());
+            //获取系统中允许的域名后缀
+            List<SysDictData> domainExtension = DictUtils.getDictCache("domain_extension");
+            //默认添加的域名为不合法后缀
+            boolean includeDomainExtension = false;
+            //当前添加域名的后缀
+            String thisDomainExtension = "";
+            //循环对比系统中的后缀
+            for (SysDictData sysDictData : domainExtension) {
+                //如果当前域名后缀是系统中的合法后缀
+                if (dnsDomainName.getDomainName().endsWith(sysDictData.getDictValue())) {
+                    //设置当前域名后缀，以最长后缀为准，比如.cn.和.net.cn.，认为后缀是.net.cn.
+                    thisDomainExtension = thisDomainExtension.length() < sysDictData.getDictValue().length() ? sysDictData.getDictValue() : thisDomainExtension;
+                    //设置为系统合法后缀
+                    includeDomainExtension = true;
+                }
+            }
+
+            if (includeDomainExtension) {
+                //获取域名验证key
+                String validateTxtContentKey = PlatformDomainNameConstants.USER_ADD_DOMAIN_NAME_VALIDATE + SecurityUtils.getUserId();
+                //获取txt验证内容
+                String validateTxtContent = redisCache.getCacheObject(validateTxtContentKey);
+                //如果不存在验证内容
+                if (StringUtils.isEmpty(validateTxtContent)) {
+                    validateTxtContent = "auth." + dnsDomainName.getDomainName() + "|" +IdUtils.fastSimpleUUID();
+                    redisCache.setCacheObject(validateTxtContentKey, validateTxtContent, 30, TimeUnit.MINUTES);
+                }
+                result.put("code", 0);
+                result.put("message", "操作成功");
+                result.put("content", validateTxtContent.split("\\|")[1]);
+                return result;
+            } else {
+                result.put("code", -1);
+                result.put("message", "操作失败");
+                return result;
+            }
+        } else {
+            result.put("code", -1);
+            result.put("message", "操作失败");
+            return result;
+        }
+    }
 
     /**
      * 验证域名
@@ -143,10 +211,22 @@ public class DnsDomainNameServiceImpl implements IDnsDomainNameService
                                         result.put("code", -3);
                                         result.put("message", "重复添加域名");
                                     } else {
-                                        dnsDomainNameExist.setDomainNameStatus("0");
-                                        dnsDomainNameMapper.updateDnsDomainName(dnsDomainNameExist);
-                                        result.put("code", 0);
-                                        result.put("message", "操作成功");
+                                        try {
+                                            dnsDomainName.setDomainNameStatus("-1");
+                                            dnsDomainNameMapper.updateDnsDomainNameStatusByName(dnsDomainName);
+                                            //更新区域
+                                            dnsDomainNameExist.setDomainNameStatus("0");
+                                            updateDnsDomainName(dnsDomainNameExist);
+                                            dnsDomainNameUtils.transformZone(dnsDomainNameExist, "");
+                                            result.put("code", 0);
+                                            result.put("message", "操作成功");
+                                        } catch (Exception e) {
+                                            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+                                            result.put("code", -4);
+                                            result.put("message", "未知错误");
+                                            return result;
+                                        }
+
                                     }
                                     return result;
                                 } else {
@@ -189,28 +269,13 @@ public class DnsDomainNameServiceImpl implements IDnsDomainNameService
                                                 //添加域名记录到数据库
                                                 dnsDomainNameRecordMapper.insertDnsDomainNameRecord(dnsDomainNameRecord);
                                             }
-                                            //创建传输到权威dns的Map
-                                            Map<String, Object> zoneMap = new HashMap<>();
-                                            //创建默认区域Map
-                                            Map<String, List<Record>> geoZone = new HashMap<>();
-                                            //设置传输区域的域名
-                                            zoneMap.put("domain", dnsDomainName.getDomainName());
-                                            //设置传输区域的区域
-                                            geoZone.put("*", defaultRecordList);
-                                            //将传输的区域添加到传输Map
-                                            zoneMap.put("geoZone", geoZone);
-                                            //创建字输出字节流
-                                            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-                                            //创建对象转输出流
-                                            ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
-                                            //将对象写入输出流
-                                            objectOutputStream.writeObject(zoneMap);
-                                            //传输该域名到权威dns更新
-                                            rabbitMQ.send(byteArrayOutputStream.toByteArray());
+                                            //更新区域
+                                            dnsDomainNameUtils.transformZone(dnsDomainName, "");
                                             result.put("code", 0);
                                             result.put("message", "操作成功");
                                             return result;
-                                        } catch (IOException e) {
+                                        } catch (Exception e) {
+                                            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
                                             result.put("code", -4);
                                             result.put("message", "未知错误");
                                             return result;
@@ -261,28 +326,12 @@ public class DnsDomainNameServiceImpl implements IDnsDomainNameService
                                                 //添加域名记录到数据库
                                                 dnsDomainNameRecordMapper.insertDnsDomainNameRecord(dnsDomainNameRecord);
                                             }
-                                            //创建传输到权威dns的Map
-                                            Map<String, Object> zoneMap = new HashMap<>();
-                                            //创建默认区域Map
-                                            Map<String, List<Record>> geoZone = new HashMap<>();
-                                            //设置传输区域的域名
-                                            zoneMap.put("domain", dnsDomainName.getDomainName());
-                                            //设置传输区域的区域
-                                            geoZone.put("*", defaultRecordList);
-                                            //将传输的区域添加到传输Map
-                                            zoneMap.put("geoZone", geoZone);
-                                            //创建字输出字节流
-                                            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-                                            //创建对象转输出流
-                                            ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
-                                            //将对象写入输出流
-                                            objectOutputStream.writeObject(zoneMap);
-                                            //传输该域名到权威dns更新
-                                            rabbitMQ.send(byteArrayOutputStream.toByteArray());
+                                            dnsDomainNameUtils.transformZone(dnsDomainName, "");
                                             result.put("code", 0);
                                             result.put("message", "操作成功");
                                             return result;
-                                        } catch (IOException e) {
+                                        } catch (Exception e) {
+                                            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
                                             result.put("code", -4);
                                             result.put("message", "未知错误");
                                             return result;
@@ -473,28 +522,12 @@ public class DnsDomainNameServiceImpl implements IDnsDomainNameService
                                     //添加域名记录到数据库
                                     dnsDomainNameRecordMapper.insertDnsDomainNameRecord(dnsDomainNameRecord);
                                 }
-                                //创建传输到权威dns的Map
-                                Map<String, Object> zoneMap = new HashMap<>();
-                                //创建默认区域Map
-                                Map<String, List<Record>> geoZone = new HashMap<>();
-                                //设置传输区域的域名
-                                zoneMap.put("domain", dnsDomainName.getDomainName());
-                                //设置传输区域的区域
-                                geoZone.put("*", defaultRecordList);
-                                //将传输的区域添加到传输Map
-                                zoneMap.put("geoZone", geoZone);
-                                //创建字输出字节流
-                                ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-                                //创建对象转输出流
-                                ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
-                                //将对象写入输出流
-                                objectOutputStream.writeObject(zoneMap);
-                                //传输该域名到权威dns更新
-                                rabbitMQ.send(byteArrayOutputStream.toByteArray());
+                                dnsDomainNameUtils.transformZone(dnsDomainName, "");
                                 result.put("code", 0);
                                 result.put("message", "操作成功");
                                 return result;
-                            } catch (IOException e) {
+                            } catch (Exception e) {
+                                TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
                                 result.put("code", -7);
                                 result.put("message", "未知错误");
                                 return result;
@@ -570,7 +603,7 @@ public class DnsDomainNameServiceImpl implements IDnsDomainNameService
                     dnsDomainName.setDomainNameDnssecDsKeyTag(String.valueOf(dsRecord.getFootprint()));
                     dnsDomainName.setDomainNameDnssecDsDigestValue(base16.toString(dsRecord.getDigest()));
                     updateDnsDomainName(dnsDomainName);
-                    dnsDomainNameUtils.transformZone(dnsDomainName);
+                    dnsDomainNameUtils.transformZone(dnsDomainName, "");
                     result.put("code", 0);
                     result.put("message", "操作成功");
                     return result;
@@ -584,7 +617,7 @@ public class DnsDomainNameServiceImpl implements IDnsDomainNameService
                 try {
                     dnsDomainName.setDomainNameDnssec(false);
                     updateDnsDomainName(dnsDomainName);
-                    dnsDomainNameUtils.transformZone(dnsDomainName);
+                    dnsDomainNameUtils.transformZone(dnsDomainName, "");
                     result.put("code", 0);
                     result.put("message", "操作成功");
                     return result;
@@ -614,10 +647,33 @@ public class DnsDomainNameServiceImpl implements IDnsDomainNameService
      * @param ids 需要删除的域名主键
      * @return 结果
      */
+    @Transactional
     @Override
-    public int deleteDnsDomainNameByIds(Long[] ids)
+    public Map<String, Object> deleteDnsDomainNameByIds(Long[] ids)
     {
-        return dnsDomainNameMapper.deleteDnsDomainNameByIds(ids);
+        long userId = SecurityUtils.getUserId();
+        Map<String, Object> result = new HashMap<>();
+        List<DnsDomainName> dnsDomainNameList = new LinkedList<>();
+        for (Long id : ids) {
+            DnsDomainName dnsDomainName = dnsDomainNameMapper.selectDnsDomainNameById(id);
+            if ((dnsDomainName != null) && (dnsDomainName.getUserId() == userId)) {
+                dnsDomainNameList.add(dnsDomainName);
+            } else {
+                result.put("code", -1);
+                result.put("message", "操作失败");
+                return result;
+            }
+        }
+        dnsDomainNameMapper.deleteDnsDomainNameByIds(ids);
+        dnsDomainNameRecordMapper.deleteDnsDomainNameRecordByDomainNameIds(ids);
+        for (DnsDomainName dnsDomainName : dnsDomainNameList) {
+            try {
+                dnsDomainNameUtils.deleteZone(dnsDomainName);
+            } catch (Exception ignored) {}
+        }
+        result.put("code", 0);
+        result.put("message", "操作成功");
+        return result;
     }
 
     /**

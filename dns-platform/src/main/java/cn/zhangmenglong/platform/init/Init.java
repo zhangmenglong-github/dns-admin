@@ -30,7 +30,7 @@ public class Init {
 
         dnsDomainNameList.forEach(dnsDomainNameTemp -> {
             try {
-                dnsDomainNameUtils.transformZone(dnsDomainNameTemp);
+                dnsDomainNameUtils.transformZone(dnsDomainNameTemp, "");
             } catch (Exception ignored) {}
         });
     }

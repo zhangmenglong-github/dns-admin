@@ -79,6 +79,17 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         delete from dns_domain_name_record where id = #{id}
     </delete>
 
+    <delete id="deleteDnsDomainNameRecordByDomainNameId" parameterType="Long">
+        delete from dns_domain_name_record where domain_name_id = #{id}
+    </delete>
+
+    <delete id="deleteDnsDomainNameRecordByDomainNameIds" parameterType="String">
+        delete from dns_domain_name_record where domain_name_id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
     <delete id="deleteDnsDomainNameRecordByIds" parameterType="String">
         delete from dns_domain_name_record where id in 
         <foreach item="id" collection="array" open="(" separator="," close=")">

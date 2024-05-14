@@ -15,7 +15,15 @@ public interface IDnsDomainNameService
 {
 
     /**
-     * 查询域名
+     * 刷新域名
+     *
+     * @param dnsDomainName 域名
+     * @return 域名
+     */
+    public Map<String, Object> validateRefreshDnsDomainName(DnsDomainName dnsDomainName);
+
+    /**
+     * 验证域名
      *
      * @param dnsDomainName 域名
      * @return 域名
@@ -67,7 +75,7 @@ public interface IDnsDomainNameService
      * @param ids 需要删除的域名主键集合
      * @return 结果
      */
-    public int deleteDnsDomainNameByIds(Long[] ids);
+    public Map<String, Object> deleteDnsDomainNameByIds(Long[] ids);
 
     /**
      * 删除域名信息
