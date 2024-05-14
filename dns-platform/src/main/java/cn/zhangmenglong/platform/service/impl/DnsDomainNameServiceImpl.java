@@ -667,9 +667,11 @@ public class DnsDomainNameServiceImpl implements IDnsDomainNameService
         dnsDomainNameMapper.deleteDnsDomainNameByIds(ids);
         dnsDomainNameRecordMapper.deleteDnsDomainNameRecordByDomainNameIds(ids);
         for (DnsDomainName dnsDomainName : dnsDomainNameList) {
-            try {
-                dnsDomainNameUtils.deleteZone(dnsDomainName);
-            } catch (Exception ignored) {}
+            if ("0".contentEquals(dnsDomainName.getDomainNameStatus())) {
+                try {
+                    dnsDomainNameUtils.deleteZone(dnsDomainName);
+                } catch (Exception ignored) {}
+            }
         }
         result.put("code", 0);
         result.put("message", "操作成功");
