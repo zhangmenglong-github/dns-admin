@@ -16,11 +16,19 @@ import cn.zhangmenglong.common.utils.SecurityUtils;
 import cn.zhangmenglong.common.utils.StringUtils;
 import cn.zhangmenglong.common.utils.uuid.IdUtils;
 import cn.zhangmenglong.platform.constant.PlatformDomainNameConstants;
+import cn.zhangmenglong.platform.domain.dto.DnsDomainNameStatistics;
 import cn.zhangmenglong.platform.domain.po.DnsDomainNameRecord;
+import cn.zhangmenglong.platform.domain.vo.DnsDomainNameTdengineQueryNameStatistics;
+import cn.zhangmenglong.platform.domain.vo.DnsDomainNameTdengineQueryNameTypeStatistics;
+import cn.zhangmenglong.platform.domain.vo.DnsDomainNameTdengineQueryTypeStatistics;
+import cn.zhangmenglong.platform.domain.vo.DnsDomainNameTdengineStatistcs;
 import cn.zhangmenglong.platform.mapper.DnsDomainNameRecordMapper;
-import cn.zhangmenglong.platform.rabbitmq.RabbitMQ;
+import cn.zhangmenglong.platform.tdengine.TdengineDataSource;
 import cn.zhangmenglong.platform.utils.DnsDomainNameUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 import cn.zhangmenglong.platform.mapper.DnsDomainNameMapper;
 import cn.zhangmenglong.platform.domain.po.DnsDomainName;
@@ -47,14 +55,460 @@ public class DnsDomainNameServiceImpl implements IDnsDomainNameService
     private DnsDomainNameRecordMapper dnsDomainNameRecordMapper;
 
     @Autowired
+    private TdengineDataSource tdengineDataSource;
+
+    @Autowired
     private DnsDomainNameUtils dnsDomainNameUtils;
 
     @Autowired
     private RedisCache redisCache;
 
     @Autowired
-    private RabbitMQ rabbitMQ;
+    private MongoTemplate mongoTemplate;
 
+
+    @Override
+    public Map<String, Integer> selectDnsDomainNameStatisticsCountByUserId(Long userId) {
+        return dnsDomainNameMapper.selectDnsDomainNameStatisticsCountByUserId(userId);
+    }
+
+    @Override
+    public Map<String, Object> queryDnsDomainNameResolutionStatistics(DnsDomainName dnsDomainName) {
+        Map<String, Object> result = new HashMap<>();
+        String intervalType = (String) dnsDomainName.getParams().get("intervalType");
+        Long timeStamp = Long.valueOf(String.valueOf(dnsDomainName.getParams().get("date")));
+        dnsDomainName = dnsDomainNameMapper.selectDnsDomainNameById(dnsDomainName.getId());
+
+        if ((dnsDomainName != null) && (dnsDomainName.getDomainNameStatus().contentEquals("0")) && (SecurityUtils.getUserId().longValue() == dnsDomainName.getUserId().longValue()) && StringUtils.isNotEmpty(intervalType)) {
+
+            long start;
+            long end;
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTime(new Date(timeStamp));
+            if (intervalType.contentEquals("DAY")) {
+                calendar.set(Calendar.HOUR_OF_DAY, 0);
+                calendar.set(Calendar.MINUTE, 0);
+                calendar.set(Calendar.SECOND, 0);
+                calendar.set(Calendar.MILLISECOND, 0);
+                start = calendar.getTimeInMillis();
+                calendar.set(Calendar.HOUR_OF_DAY, 23);
+                calendar.set(Calendar.MINUTE, 59);
+                calendar.set(Calendar.SECOND, 59);
+                calendar.set(Calendar.MILLISECOND, 999);
+                end = calendar.getTimeInMillis();
+            } else if (intervalType.contentEquals("HOUR")) {
+                calendar.set(Calendar.MINUTE, 0);
+                calendar.set(Calendar.SECOND, 0);
+                calendar.set(Calendar.MILLISECOND, 0);
+                start = calendar.getTimeInMillis();
+                calendar.set(Calendar.MINUTE, 59);
+                calendar.set(Calendar.SECOND, 59);
+                calendar.set(Calendar.MILLISECOND, 999);
+                end = calendar.getTimeInMillis();
+            } else if (intervalType.contentEquals("MINUTE")) {
+                calendar.set(Calendar.SECOND, 0);
+                calendar.set(Calendar.MILLISECOND, 0);
+                start = calendar.getTimeInMillis();
+                calendar.set(Calendar.SECOND, 59);
+                calendar.set(Calendar.MILLISECOND, 999);
+                end = calendar.getTimeInMillis();
+            } else {
+                result.put("code", -1);
+                result.put("message", "操作失败");
+                return result;
+            }
+            List<DnsDomainNameTdengineStatistcs> dnsDomainNameTdengineStatistcsList = tdengineDataSource.queryStatistics(dnsDomainName.getDomainName(), start, end, intervalType);
+            DnsDomainNameStatistics dnsDomainNameStatistics = new DnsDomainNameStatistics();
+            dnsDomainNameStatistics.setTimeLine(new ArrayList<>());
+            dnsDomainNameStatistics.setTimeData(new HashMap<>());
+            Calendar nowCalendar = Calendar.getInstance();
+            boolean queryDateIsToday = (nowCalendar.get(Calendar.YEAR) == calendar.get(Calendar.YEAR)) && (nowCalendar.get(Calendar.MONTH) == calendar.get(Calendar.MONTH)) && (nowCalendar.get(Calendar.DATE) == calendar.get(Calendar.DATE));
+            if (intervalType.contentEquals("DAY")) {
+                calendar.set(Calendar.MINUTE, 0);
+                calendar.set(Calendar.SECOND, 0);
+                int hourRange = queryDateIsToday ? nowCalendar.get(Calendar.HOUR_OF_DAY) : 23;
+                for (int index = 0; index <= hourRange; index++) {
+                    calendar.set(Calendar.HOUR_OF_DAY, index);
+                    dnsDomainNameStatistics.getTimeLine().add(DateUtils.parseDateToStr(DateUtils.HH_MM_SS, calendar.getTime()));
+                }
+                dnsDomainNameStatistics.getTimeLine().forEach(timeLine -> {
+                    boolean timeLineHasData = false;
+                    for (DnsDomainNameTdengineStatistcs dnsDomainNameTdengineStatistcs : dnsDomainNameTdengineStatistcsList) {
+                        if (DateUtils.parseDateToStr(DateUtils.HH, dnsDomainNameTdengineStatistcs.getQueryTime()).contentEquals(timeLine.split(":")[0])) {
+                            List<Long> queryCount = dnsDomainNameStatistics.getTimeData().get("queryCount");
+                            queryCount = (queryCount == null) ? new ArrayList<>() : queryCount;
+                            queryCount.add(dnsDomainNameTdengineStatistcs.getQueryCount());
+                            dnsDomainNameStatistics.getTimeData().put("queryCount", queryCount);
+                            List<Long> udpQueryCount = dnsDomainNameStatistics.getTimeData().get("udpQueryCount");
+                            udpQueryCount = (udpQueryCount == null) ? new ArrayList<>() : udpQueryCount;
+                            udpQueryCount.add(dnsDomainNameTdengineStatistcs.getUdpQueryCount());
+                            dnsDomainNameStatistics.getTimeData().put("udpQueryCount", udpQueryCount);
+                            List<Long> tcpQueryCount = dnsDomainNameStatistics.getTimeData().get("tcpQueryCount");
+                            tcpQueryCount = (tcpQueryCount == null) ? new ArrayList<>() : tcpQueryCount;
+                            tcpQueryCount.add(dnsDomainNameTdengineStatistcs.getTcpQueryCount());
+                            dnsDomainNameStatistics.getTimeData().put("tcpQueryCount", tcpQueryCount);
+                            List<Long> dnssecRequestCount = dnsDomainNameStatistics.getTimeData().get("dnssecRequestCount");
+                            dnssecRequestCount = (dnssecRequestCount == null) ? new ArrayList<>() : dnssecRequestCount;
+                            dnssecRequestCount.add(dnsDomainNameTdengineStatistcs.getDnssecRequestCount());
+                            dnsDomainNameStatistics.getTimeData().put("dnssecRequestCount", dnssecRequestCount);
+                            List<Long> noDnssecRequestCount = dnsDomainNameStatistics.getTimeData().get("noDnssecRequestCount");
+                            noDnssecRequestCount = (noDnssecRequestCount == null) ? new ArrayList<>() : noDnssecRequestCount;
+                            noDnssecRequestCount.add(dnsDomainNameTdengineStatistcs.getNoDnssecRequestCount());
+                            dnsDomainNameStatistics.getTimeData().put("noDnssecRequestCount", noDnssecRequestCount);
+                            List<Long> dnssecResponseCount = dnsDomainNameStatistics.getTimeData().get("dnssecResponseCount");
+                            dnssecResponseCount = (dnssecResponseCount == null) ? new ArrayList<>() : dnssecResponseCount;
+                            dnssecResponseCount.add(dnsDomainNameTdengineStatistcs.getDnssecResponseCount());
+                            dnsDomainNameStatistics.getTimeData().put("dnssecResponseCount", dnssecResponseCount);
+                            List<Long> noDnssecResponseCount = dnsDomainNameStatistics.getTimeData().get("noDnssecResponseCount");
+                            noDnssecResponseCount = (noDnssecResponseCount == null) ? new ArrayList<>() : noDnssecResponseCount;
+                            noDnssecResponseCount.add(dnsDomainNameTdengineStatistcs.getNoDnssecResponseCount());
+                            dnsDomainNameStatistics.getTimeData().put("noDnssecResponseCount", noDnssecResponseCount);
+                            timeLineHasData = true;
+                        }
+                    }
+                    if (!timeLineHasData) {
+                        List<Long> queryCount = dnsDomainNameStatistics.getTimeData().get("queryCount");
+                        queryCount = (queryCount == null) ? new ArrayList<>() : queryCount;
+                        queryCount.add(0L);
+                        dnsDomainNameStatistics.getTimeData().put("queryCount", queryCount);
+                        List<Long> udpQueryCount = dnsDomainNameStatistics.getTimeData().get("udpQueryCount");
+                        udpQueryCount = (udpQueryCount == null) ? new ArrayList<>() : udpQueryCount;
+                        udpQueryCount.add(0L);
+                        dnsDomainNameStatistics.getTimeData().put("udpQueryCount", udpQueryCount);
+                        List<Long> tcpQueryCount = dnsDomainNameStatistics.getTimeData().get("tcpQueryCount");
+                        tcpQueryCount = (tcpQueryCount == null) ? new ArrayList<>() : tcpQueryCount;
+                        tcpQueryCount.add(0L);
+                        dnsDomainNameStatistics.getTimeData().put("tcpQueryCount", tcpQueryCount);
+                        List<Long> dnssecRequestCount = dnsDomainNameStatistics.getTimeData().get("dnssecRequestCount");
+                        dnssecRequestCount = (dnssecRequestCount == null) ? new ArrayList<>() : dnssecRequestCount;
+                        dnssecRequestCount.add(0L);
+                        dnsDomainNameStatistics.getTimeData().put("dnssecRequestCount", dnssecRequestCount);
+                        List<Long> noDnssecRequestCount = dnsDomainNameStatistics.getTimeData().get("noDnssecRequestCount");
+                        noDnssecRequestCount = (noDnssecRequestCount == null) ? new ArrayList<>() : noDnssecRequestCount;
+                        noDnssecRequestCount.add(0L);
+                        dnsDomainNameStatistics.getTimeData().put("noDnssecRequestCount", noDnssecRequestCount);
+                        List<Long> dnssecResponseCount = dnsDomainNameStatistics.getTimeData().get("dnssecResponseCount");
+                        dnssecResponseCount = (dnssecResponseCount == null) ? new ArrayList<>() : dnssecResponseCount;
+                        dnssecResponseCount.add(0L);
+                        dnsDomainNameStatistics.getTimeData().put("dnssecResponseCount", dnssecResponseCount);
+                        List<Long> noDnssecResponseCount = dnsDomainNameStatistics.getTimeData().get("noDnssecResponseCount");
+                        noDnssecResponseCount = (noDnssecResponseCount == null) ? new ArrayList<>() : noDnssecResponseCount;
+                        noDnssecResponseCount.add(0L);
+                        dnsDomainNameStatistics.getTimeData().put("noDnssecResponseCount", noDnssecResponseCount);
+                    }
+                });
+                result.put("code", 0);
+                result.put("data", dnsDomainNameStatistics);
+                result.put("message", "操作成功");
+                return result;
+            } else if (intervalType.contentEquals("HOUR")) {
+                calendar.set(Calendar.SECOND, 0);
+                int minuteRange = queryDateIsToday ? (nowCalendar.get(Calendar.HOUR_OF_DAY) > calendar.get(Calendar.HOUR_OF_DAY) ? 59 : nowCalendar.get(Calendar.MINUTE)) : 59;
+                for (int index = 0; index <= minuteRange; index++) {
+                    calendar.set(Calendar.MINUTE, index);
+                    dnsDomainNameStatistics.getTimeLine().add(DateUtils.parseDateToStr(DateUtils.HH_MM_SS, calendar.getTime()));
+                }
+                dnsDomainNameStatistics.getTimeLine().forEach(timeLine -> {
+                    boolean timeLineHasData = false;
+                    for (DnsDomainNameTdengineStatistcs dnsDomainNameTdengineStatistcs : dnsDomainNameTdengineStatistcsList) {
+                        if (DateUtils.parseDateToStr(DateUtils.MM, dnsDomainNameTdengineStatistcs.getQueryTime()).contentEquals(timeLine.split(":")[1])) {
+                            List<Long> queryCount = dnsDomainNameStatistics.getTimeData().get("queryCount");
+                            queryCount = (queryCount == null) ? new ArrayList<>() : queryCount;
+                            queryCount.add(dnsDomainNameTdengineStatistcs.getQueryCount());
+                            dnsDomainNameStatistics.getTimeData().put("queryCount", queryCount);
+                            List<Long> udpQueryCount = dnsDomainNameStatistics.getTimeData().get("udpQueryCount");
+                            udpQueryCount = (udpQueryCount == null) ? new ArrayList<>() : udpQueryCount;
+                            udpQueryCount.add(dnsDomainNameTdengineStatistcs.getUdpQueryCount());
+                            dnsDomainNameStatistics.getTimeData().put("udpQueryCount", udpQueryCount);
+                            List<Long> tcpQueryCount = dnsDomainNameStatistics.getTimeData().get("tcpQueryCount");
+                            tcpQueryCount = (tcpQueryCount == null) ? new ArrayList<>() : tcpQueryCount;
+                            tcpQueryCount.add(dnsDomainNameTdengineStatistcs.getTcpQueryCount());
+                            dnsDomainNameStatistics.getTimeData().put("tcpQueryCount", tcpQueryCount);
+                            List<Long> dnssecRequestCount = dnsDomainNameStatistics.getTimeData().get("dnssecRequestCount");
+                            dnssecRequestCount = (dnssecRequestCount == null) ? new ArrayList<>() : dnssecRequestCount;
+                            dnssecRequestCount.add(dnsDomainNameTdengineStatistcs.getDnssecRequestCount());
+                            dnsDomainNameStatistics.getTimeData().put("dnssecRequestCount", dnssecRequestCount);
+                            List<Long> noDnssecRequestCount = dnsDomainNameStatistics.getTimeData().get("noDnssecRequestCount");
+                            noDnssecRequestCount = (noDnssecRequestCount == null) ? new ArrayList<>() : noDnssecRequestCount;
+                            noDnssecRequestCount.add(dnsDomainNameTdengineStatistcs.getNoDnssecRequestCount());
+                            dnsDomainNameStatistics.getTimeData().put("noDnssecRequestCount", noDnssecRequestCount);
+                            List<Long> dnssecResponseCount = dnsDomainNameStatistics.getTimeData().get("dnssecResponseCount");
+                            dnssecResponseCount = (dnssecResponseCount == null) ? new ArrayList<>() : dnssecResponseCount;
+                            dnssecResponseCount.add(dnsDomainNameTdengineStatistcs.getDnssecResponseCount());
+                            dnsDomainNameStatistics.getTimeData().put("dnssecResponseCount", dnssecResponseCount);
+                            List<Long> noDnssecResponseCount = dnsDomainNameStatistics.getTimeData().get("noDnssecResponseCount");
+                            noDnssecResponseCount = (noDnssecResponseCount == null) ? new ArrayList<>() : noDnssecResponseCount;
+                            noDnssecResponseCount.add(dnsDomainNameTdengineStatistcs.getNoDnssecResponseCount());
+                            dnsDomainNameStatistics.getTimeData().put("noDnssecResponseCount", noDnssecResponseCount);
+                            timeLineHasData = true;
+                        }
+                    }
+                    if (!timeLineHasData) {
+                        List<Long> queryCount = dnsDomainNameStatistics.getTimeData().get("queryCount");
+                        queryCount = (queryCount == null) ? new ArrayList<>() : queryCount;
+                        queryCount.add(0L);
+                        dnsDomainNameStatistics.getTimeData().put("queryCount", queryCount);
+                        List<Long> udpQueryCount = dnsDomainNameStatistics.getTimeData().get("udpQueryCount");
+                        udpQueryCount = (udpQueryCount == null) ? new ArrayList<>() : udpQueryCount;
+                        udpQueryCount.add(0L);
+                        dnsDomainNameStatistics.getTimeData().put("udpQueryCount", udpQueryCount);
+                        List<Long> tcpQueryCount = dnsDomainNameStatistics.getTimeData().get("tcpQueryCount");
+                        tcpQueryCount = (tcpQueryCount == null) ? new ArrayList<>() : tcpQueryCount;
+                        tcpQueryCount.add(0L);
+                        dnsDomainNameStatistics.getTimeData().put("tcpQueryCount", tcpQueryCount);
+                        List<Long> dnssecRequestCount = dnsDomainNameStatistics.getTimeData().get("dnssecRequestCount");
+                        dnssecRequestCount = (dnssecRequestCount == null) ? new ArrayList<>() : dnssecRequestCount;
+                        dnssecRequestCount.add(0L);
+                        dnsDomainNameStatistics.getTimeData().put("dnssecRequestCount", dnssecRequestCount);
+                        List<Long> noDnssecRequestCount = dnsDomainNameStatistics.getTimeData().get("noDnssecRequestCount");
+                        noDnssecRequestCount = (noDnssecRequestCount == null) ? new ArrayList<>() : noDnssecRequestCount;
+                        noDnssecRequestCount.add(0L);
+                        dnsDomainNameStatistics.getTimeData().put("noDnssecRequestCount", noDnssecRequestCount);
+                        List<Long> dnssecResponseCount = dnsDomainNameStatistics.getTimeData().get("dnssecResponseCount");
+                        dnssecResponseCount = (dnssecResponseCount == null) ? new ArrayList<>() : dnssecResponseCount;
+                        dnssecResponseCount.add(0L);
+                        dnsDomainNameStatistics.getTimeData().put("dnssecResponseCount", dnssecResponseCount);
+                        List<Long> noDnssecResponseCount = dnsDomainNameStatistics.getTimeData().get("noDnssecResponseCount");
+                        noDnssecResponseCount = (noDnssecResponseCount == null) ? new ArrayList<>() : noDnssecResponseCount;
+                        noDnssecResponseCount.add(0L);
+                        dnsDomainNameStatistics.getTimeData().put("noDnssecResponseCount", noDnssecResponseCount);
+                    }
+                });
+                result.put("code", 0);
+                result.put("data", dnsDomainNameStatistics);
+                result.put("message", "操作成功");
+                return result;
+            } else if (intervalType.contentEquals("MINUTE")) {
+                int secondRange = queryDateIsToday ? (nowCalendar.get(Calendar.HOUR_OF_DAY) > calendar.get(Calendar.HOUR_OF_DAY) ? 59 : (nowCalendar.get(Calendar.MINUTE) > calendar.get(Calendar.MINUTE) ? 59 : nowCalendar.get(Calendar.SECOND))) : 59;
+                for (int index = 0; index <= secondRange; index++) {
+                    calendar.set(Calendar.SECOND, index);
+                    dnsDomainNameStatistics.getTimeLine().add(DateUtils.parseDateToStr(DateUtils.HH_MM_SS, calendar.getTime()));
+                }
+                dnsDomainNameStatistics.getTimeLine().forEach(timeLine -> {
+                    boolean timeLineHasData = false;
+                    for (DnsDomainNameTdengineStatistcs dnsDomainNameTdengineStatistcs : dnsDomainNameTdengineStatistcsList) {
+                        if (DateUtils.parseDateToStr(DateUtils.SS, dnsDomainNameTdengineStatistcs.getQueryTime()).contentEquals(timeLine.split(":")[2])) {
+                            List<Long> queryCount = dnsDomainNameStatistics.getTimeData().get("queryCount");
+                            queryCount = (queryCount == null) ? new ArrayList<>() : queryCount;
+                            queryCount.add(dnsDomainNameTdengineStatistcs.getQueryCount());
+                            dnsDomainNameStatistics.getTimeData().put("queryCount", queryCount);
+                            List<Long> udpQueryCount = dnsDomainNameStatistics.getTimeData().get("udpQueryCount");
+                            udpQueryCount = (udpQueryCount == null) ? new ArrayList<>() : udpQueryCount;
+                            udpQueryCount.add(dnsDomainNameTdengineStatistcs.getUdpQueryCount());
+                            dnsDomainNameStatistics.getTimeData().put("udpQueryCount", udpQueryCount);
+                            List<Long> tcpQueryCount = dnsDomainNameStatistics.getTimeData().get("tcpQueryCount");
+                            tcpQueryCount = (tcpQueryCount == null) ? new ArrayList<>() : tcpQueryCount;
+                            tcpQueryCount.add(dnsDomainNameTdengineStatistcs.getTcpQueryCount());
+                            dnsDomainNameStatistics.getTimeData().put("tcpQueryCount", tcpQueryCount);
+                            List<Long> dnssecRequestCount = dnsDomainNameStatistics.getTimeData().get("dnssecRequestCount");
+                            dnssecRequestCount = (dnssecRequestCount == null) ? new ArrayList<>() : dnssecRequestCount;
+                            dnssecRequestCount.add(dnsDomainNameTdengineStatistcs.getDnssecRequestCount());
+                            dnsDomainNameStatistics.getTimeData().put("dnssecRequestCount", dnssecRequestCount);
+                            List<Long> noDnssecRequestCount = dnsDomainNameStatistics.getTimeData().get("noDnssecRequestCount");
+                            noDnssecRequestCount = (noDnssecRequestCount == null) ? new ArrayList<>() : noDnssecRequestCount;
+                            noDnssecRequestCount.add(dnsDomainNameTdengineStatistcs.getNoDnssecRequestCount());
+                            dnsDomainNameStatistics.getTimeData().put("noDnssecRequestCount", noDnssecRequestCount);
+                            List<Long> dnssecResponseCount = dnsDomainNameStatistics.getTimeData().get("dnssecResponseCount");
+                            dnssecResponseCount = (dnssecResponseCount == null) ? new ArrayList<>() : dnssecResponseCount;
+                            dnssecResponseCount.add(dnsDomainNameTdengineStatistcs.getDnssecResponseCount());
+                            dnsDomainNameStatistics.getTimeData().put("dnssecResponseCount", dnssecResponseCount);
+                            List<Long> noDnssecResponseCount = dnsDomainNameStatistics.getTimeData().get("noDnssecResponseCount");
+                            noDnssecResponseCount = (noDnssecResponseCount == null) ? new ArrayList<>() : noDnssecResponseCount;
+                            noDnssecResponseCount.add(dnsDomainNameTdengineStatistcs.getNoDnssecResponseCount());
+                            dnsDomainNameStatistics.getTimeData().put("noDnssecResponseCount", noDnssecResponseCount);
+                            timeLineHasData = true;
+                        }
+                    }
+                    if (!timeLineHasData) {
+                        List<Long> queryCount = dnsDomainNameStatistics.getTimeData().get("queryCount");
+                        queryCount = (queryCount == null) ? new ArrayList<>() : queryCount;
+                        queryCount.add(0L);
+                        dnsDomainNameStatistics.getTimeData().put("queryCount", queryCount);
+                        List<Long> udpQueryCount = dnsDomainNameStatistics.getTimeData().get("udpQueryCount");
+                        udpQueryCount = (udpQueryCount == null) ? new ArrayList<>() : udpQueryCount;
+                        udpQueryCount.add(0L);
+                        dnsDomainNameStatistics.getTimeData().put("udpQueryCount", udpQueryCount);
+                        List<Long> tcpQueryCount = dnsDomainNameStatistics.getTimeData().get("tcpQueryCount");
+                        tcpQueryCount = (tcpQueryCount == null) ? new ArrayList<>() : tcpQueryCount;
+                        tcpQueryCount.add(0L);
+                        dnsDomainNameStatistics.getTimeData().put("tcpQueryCount", tcpQueryCount);
+                        List<Long> dnssecRequestCount = dnsDomainNameStatistics.getTimeData().get("dnssecRequestCount");
+                        dnssecRequestCount = (dnssecRequestCount == null) ? new ArrayList<>() : dnssecRequestCount;
+                        dnssecRequestCount.add(0L);
+                        dnsDomainNameStatistics.getTimeData().put("dnssecRequestCount", dnssecRequestCount);
+                        List<Long> noDnssecRequestCount = dnsDomainNameStatistics.getTimeData().get("noDnssecRequestCount");
+                        noDnssecRequestCount = (noDnssecRequestCount == null) ? new ArrayList<>() : noDnssecRequestCount;
+                        noDnssecRequestCount.add(0L);
+                        dnsDomainNameStatistics.getTimeData().put("noDnssecRequestCount", noDnssecRequestCount);
+                        List<Long> dnssecResponseCount = dnsDomainNameStatistics.getTimeData().get("dnssecResponseCount");
+                        dnssecResponseCount = (dnssecResponseCount == null) ? new ArrayList<>() : dnssecResponseCount;
+                        dnssecResponseCount.add(0L);
+                        dnsDomainNameStatistics.getTimeData().put("dnssecResponseCount", dnssecResponseCount);
+                        List<Long> noDnssecResponseCount = dnsDomainNameStatistics.getTimeData().get("noDnssecResponseCount");
+                        noDnssecResponseCount = (noDnssecResponseCount == null) ? new ArrayList<>() : noDnssecResponseCount;
+                        noDnssecResponseCount.add(0L);
+                        dnsDomainNameStatistics.getTimeData().put("noDnssecResponseCount", noDnssecResponseCount);
+                    }
+                });
+                result.put("code", 0);
+                result.put("data", dnsDomainNameStatistics);
+                result.put("message", "操作成功");
+                return result;
+            } else {
+                result.put("code", -1);
+                result.put("message", "操作失败");
+                return result;
+            }
+        } else {
+            result.put("code", -1);
+            result.put("message", "操作失败");
+            return result;
+        }
+    }
+
+    @Override
+    public Map<String, Object> queryDnsDomainNameResolutionStatisticsQueryGeo(DnsDomainName dnsDomainName) {
+        Map<String, Object> result = new HashMap<>();
+        Long timeStamp = Long.valueOf(String.valueOf(dnsDomainName.getParams().get("date")));
+        dnsDomainName = dnsDomainNameMapper.selectDnsDomainNameById(dnsDomainName.getId());
+        if ((dnsDomainName != null) && (dnsDomainName.getDomainNameStatus().contentEquals("0")) && (SecurityUtils.getUserId().longValue() == dnsDomainName.getUserId().longValue())) {
+            String queryTime = DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD, new Date(timeStamp));
+            Query query = new Query();
+            query.addCriteria(Criteria.where("queryTime").is(queryTime).and("queryDomain").is(dnsDomainName.getDomainName()));
+            Map<String, Object> geoLogMap = mongoTemplate.findOne(query, Map.class, "dns_geo_log");
+            if (geoLogMap == null) {
+                geoLogMap = new HashMap<>();
+                List<SysDictData> countryNameCodeDict = DictUtils.getDictCache("country_name_code");
+                for (SysDictData countryNameCode : countryNameCodeDict) {
+                    Object geoCount = redisCache.getCacheObject(PlatformDomainNameConstants.RESOLUTION_GEO_STATISTICS_COUNT + queryTime + ":" + dnsDomainName.getDomainName() + ":" + countryNameCode.getDictValue());
+                    if (geoCount != null) {
+                        geoLogMap.put(countryNameCode.getDictValue(), String.valueOf(geoCount));
+                    }
+                }
+                Object nullGeoCount = redisCache.getCacheObject(PlatformDomainNameConstants.RESOLUTION_GEO_STATISTICS_COUNT + queryTime + ":" + dnsDomainName.getDomainName() + ":null");
+                if (nullGeoCount != null) {
+                    geoLogMap.put("null", String.valueOf(nullGeoCount));
+                }
+            }
+            result.put("code", 0);
+            result.put("message", "操作成功");
+            result.put("data", geoLogMap);
+            return result;
+        } else {
+            result.put("code", -1);
+            result.put("message", "操作失败");
+            return result;
+        }
+    }
+
+    @Override
+    public Map<String, Object> queryDnsDomainNameResolutionStatisticsQueryName(DnsDomainName dnsDomainName) {
+        Map<String, Object> result = new HashMap<>();
+        Long timeStamp = Long.valueOf(String.valueOf(dnsDomainName.getParams().get("date")));
+        dnsDomainName = dnsDomainNameMapper.selectDnsDomainNameById(dnsDomainName.getId());
+
+        if ((dnsDomainName != null) && (dnsDomainName.getDomainNameStatus().contentEquals("0")) && (SecurityUtils.getUserId().longValue() == dnsDomainName.getUserId().longValue())) {
+
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTime(new Date(timeStamp));
+            calendar.set(Calendar.HOUR_OF_DAY, 0);
+            calendar.set(Calendar.MINUTE, 0);
+            calendar.set(Calendar.SECOND, 0);
+            calendar.set(Calendar.MILLISECOND, 0);
+            long start = calendar.getTimeInMillis();
+            calendar.set(Calendar.HOUR_OF_DAY, 23);
+            calendar.set(Calendar.MINUTE, 59);
+            calendar.set(Calendar.SECOND, 59);
+            calendar.set(Calendar.MILLISECOND, 999);
+            long end = calendar.getTimeInMillis();
+            List<DnsDomainNameTdengineQueryNameStatistics> dnsDomainNameTdengineQueryNameStatisticsList = tdengineDataSource.queryNameStatistics(dnsDomainName.getDomainName(), start, end);
+            result.put("code", 0);
+            result.put("message", "操作成功");
+            result.put("data", dnsDomainNameTdengineQueryNameStatisticsList);
+            return result;
+        } else {
+            result.put("code", -1);
+            result.put("message", "操作失败");
+            return result;
+        }
+    }
+
+    @Override
+    public Map<String, Object> queryDnsDomainNameResolutionStatisticsQueryType(DnsDomainName dnsDomainName) {
+        Map<String, Object> result = new HashMap<>();
+        Long timeStamp = Long.valueOf(String.valueOf(dnsDomainName.getParams().get("date")));
+        dnsDomainName = dnsDomainNameMapper.selectDnsDomainNameById(dnsDomainName.getId());
+
+        if ((dnsDomainName != null) && (dnsDomainName.getDomainNameStatus().contentEquals("0")) && (SecurityUtils.getUserId().longValue() == dnsDomainName.getUserId().longValue())) {
+
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTime(new Date(timeStamp));
+            calendar.set(Calendar.HOUR_OF_DAY, 0);
+            calendar.set(Calendar.MINUTE, 0);
+            calendar.set(Calendar.SECOND, 0);
+            calendar.set(Calendar.MILLISECOND, 0);
+            long start = calendar.getTimeInMillis();
+            calendar.set(Calendar.HOUR_OF_DAY, 23);
+            calendar.set(Calendar.MINUTE, 59);
+            calendar.set(Calendar.SECOND, 59);
+            calendar.set(Calendar.MILLISECOND, 999);
+            long end = calendar.getTimeInMillis();
+            List<DnsDomainNameTdengineQueryTypeStatistics> dnsDomainNameTdengineQueryTypeStatisticsList = tdengineDataSource.queryTypeStatistics(dnsDomainName.getDomainName(), start, end);
+            dnsDomainNameTdengineQueryTypeStatisticsList.forEach(dnsDomainNameTdengineQueryTypeStatistics -> {
+                dnsDomainNameTdengineQueryTypeStatistics.setQueryType(Type.string(Integer.parseInt(dnsDomainNameTdengineQueryTypeStatistics.getQueryType())));
+            });
+            result.put("code", 0);
+            result.put("message", "操作成功");
+            result.put("data", dnsDomainNameTdengineQueryTypeStatisticsList);
+            return result;
+        } else {
+            result.put("code", -1);
+            result.put("message", "操作失败");
+            return result;
+        }
+    }
+
+    @Override
+    public Map<String, Object> queryDnsDomainNameResolutionStatisticsQueryNameType(DnsDomainName dnsDomainName) {
+        Map<String, Object> result = new HashMap<>();
+        Long timeStamp = Long.valueOf(String.valueOf(dnsDomainName.getParams().get("date")));
+        dnsDomainName = dnsDomainNameMapper.selectDnsDomainNameById(dnsDomainName.getId());
+
+        if ((dnsDomainName != null) && (dnsDomainName.getDomainNameStatus().contentEquals("0")) && (SecurityUtils.getUserId().longValue() == dnsDomainName.getUserId().longValue())) {
+
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTime(new Date(timeStamp));
+            calendar.set(Calendar.HOUR_OF_DAY, 0);
+            calendar.set(Calendar.MINUTE, 0);
+            calendar.set(Calendar.SECOND, 0);
+            calendar.set(Calendar.MILLISECOND, 0);
+            long start = calendar.getTimeInMillis();
+            calendar.set(Calendar.HOUR_OF_DAY, 23);
+            calendar.set(Calendar.MINUTE, 59);
+            calendar.set(Calendar.SECOND, 59);
+            calendar.set(Calendar.MILLISECOND, 999);
+            long end = calendar.getTimeInMillis();
+            Map<String, DnsDomainNameTdengineQueryNameTypeStatistics> dnsDomainNameTdengineQueryNameTypeStatisticsMap = tdengineDataSource.queryNameTypeStatistics(dnsDomainName.getDomainName(), start, end);
+            List<DnsDomainNameTdengineQueryNameTypeStatistics> dnsDomainNameTdengineQueryNameTypeStatisticsList = new ArrayList<>();
+            dnsDomainNameTdengineQueryNameTypeStatisticsMap.keySet().forEach(queryName -> {
+                DnsDomainNameTdengineQueryNameTypeStatistics dnsDomainNameTdengineQueryNameTypeStatistics = dnsDomainNameTdengineQueryNameTypeStatisticsMap.get(queryName);
+                DnsDomainNameTdengineQueryNameTypeStatistics dnsDomainNameTdengineQueryNameTypeStatisticsItem = new DnsDomainNameTdengineQueryNameTypeStatistics();
+                dnsDomainNameTdengineQueryNameTypeStatisticsItem.setQueryName(dnsDomainNameTdengineQueryNameTypeStatistics.getQueryName());
+                dnsDomainNameTdengineQueryNameTypeStatistics.getQueryTypeCount().keySet().forEach(queryType -> {
+                    dnsDomainNameTdengineQueryNameTypeStatisticsItem.getQueryTypeCount().put(Type.string(Integer.parseInt(queryType)), dnsDomainNameTdengineQueryNameTypeStatistics.getQueryTypeCount().get(queryType));
+                });
+                dnsDomainNameTdengineQueryNameTypeStatisticsList.add(dnsDomainNameTdengineQueryNameTypeStatisticsItem);
+            });
+            result.put("code", 0);
+            result.put("message", "操作成功");
+            result.put("data", dnsDomainNameTdengineQueryNameTypeStatisticsList);
+            return result;
+        } else {
+            result.put("code", -1);
+            result.put("message", "操作失败");
+            return result;
+        }
+    }
 
     @Override
     public Map<String, Object> validateRefreshDnsDomainName(DnsDomainName dnsDomainName) {
@@ -264,6 +718,8 @@ public class DnsDomainNameServiceImpl implements IDnsDomainNameService
                                                 dnsDomainNameRecord.setRecordGeo("*");
                                                 //设置记录的TTL
                                                 dnsDomainNameRecord.setRecordTtl(record.getTTL());
+                                                //设置记录值
+                                                dnsDomainNameRecord.setRecordValue(record.rdataToString());
                                                 //设置记录的内容
                                                 dnsDomainNameRecord.setRecordContent(Base64.getEncoder().encodeToString(record.toWire(Section.ANSWER)));
                                                 //添加域名记录到数据库
@@ -321,6 +777,8 @@ public class DnsDomainNameServiceImpl implements IDnsDomainNameService
                                                 dnsDomainNameRecord.setRecordGeo("*");
                                                 //设置记录的TTL
                                                 dnsDomainNameRecord.setRecordTtl(record.getTTL());
+                                                //设置记录值
+                                                dnsDomainNameRecord.setRecordValue(record.rdataToString());
                                                 //设置记录的内容
                                                 dnsDomainNameRecord.setRecordContent(Base64.getEncoder().encodeToString(record.toWire(Section.ANSWER)));
                                                 //添加域名记录到数据库
@@ -517,6 +975,8 @@ public class DnsDomainNameServiceImpl implements IDnsDomainNameService
                                     dnsDomainNameRecord.setRecordGeo("*");
                                     //设置记录的TTL
                                     dnsDomainNameRecord.setRecordTtl(record.getTTL());
+                                    //设置记录值
+                                    dnsDomainNameRecord.setRecordValue(record.rdataToString());
                                     //设置记录的内容
                                     dnsDomainNameRecord.setRecordContent(Base64.getEncoder().encodeToString(record.toWire(Section.ANSWER)));
                                     //添加域名记录到数据库

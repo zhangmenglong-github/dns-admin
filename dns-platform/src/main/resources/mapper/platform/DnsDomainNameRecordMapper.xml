@@ -9,13 +9,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="domainNameId"    column="domain_name_id"    />
         <result property="recordName"    column="record_name"    />
         <result property="recordType"    column="record_type"    />
-        <result property="recordTtl"    column="record_ttl"    />
         <result property="recordGeo"    column="record_geo"    />
+        <result property="recordTtl"    column="record_ttl"    />
+        <result property="recordValue"    column="record_value"    />
         <result property="recordContent"    column="record_content"    />
     </resultMap>
 
     <sql id="selectDnsDomainNameRecordVo">
-        select id, domain_name_id, record_name, record_type, record_geo, record_ttl, record_content from dns_domain_name_record
+        select id, domain_name_id, record_name, record_type, record_geo, record_ttl, record_value, record_content from dns_domain_name_record
     </sql>
 
     <select id="selectDnsDomainNameRecordList" parameterType="DnsDomainNameRecord" resultMap="DnsDomainNameRecordResult">
@@ -28,6 +29,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="recordTtl != null "> and record_ttl = #{recordTtl}</if>
             <if test="recordContent != null  and recordContent != ''"> and record_content = #{recordContent}</if>
         </where>
+        ORDER BY id DESC
     </select>
 
     <select id="selectDnsDomainNameRecordByDomainNameId" parameterType="DnsDomainNameRecord" resultMap="DnsDomainNameRecordResult">
@@ -49,6 +51,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="recordType != null and recordType != ''">record_type,</if>
             <if test="recordGeo != null and recordGeo != ''">record_geo,</if>
             <if test="recordTtl != null">record_ttl,</if>
+            <if test="recordValue != null and recordValue != ''">record_value,</if>
             <if test="recordContent != null and recordContent != ''">record_content,</if>
          </trim>
         <trim prefix="values (" suffix=")" suffixOverrides=",">
@@ -58,6 +61,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="recordType != null and recordType != ''">#{recordType},</if>
             <if test="recordGeo != null and recordGeo != ''">#{recordGeo},</if>
             <if test="recordTtl != null">#{recordTtl},</if>
+            <if test="recordValue != null and recordValue != ''">#{recordValue},</if>
             <if test="recordContent != null and recordContent != ''">#{recordContent},</if>
          </trim>
     </insert>
@@ -70,6 +74,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="recordType != null and recordType != ''">record_type = #{recordType},</if>
             <if test="recordGeo != null and recordGeo != ''">record_geo = #{recordGeo},</if>
             <if test="recordTtl != null">record_ttl = #{recordTtl},</if>
+            <if test="recordValue != null and recordValue != ''">record_value = #{recordValue},</if>
             <if test="recordContent != null and recordContent != ''">record_content = #{recordContent},</if>
         </trim>
         where id = #{id}

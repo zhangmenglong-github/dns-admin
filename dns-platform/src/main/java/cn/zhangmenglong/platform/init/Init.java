@@ -3,7 +3,6 @@ package cn.zhangmenglong.platform.init;
 
 import cn.zhangmenglong.platform.domain.po.DnsDomainName;
 import cn.zhangmenglong.platform.mapper.DnsDomainNameMapper;
-import cn.zhangmenglong.platform.rabbitmq.RabbitMQ;
 import cn.zhangmenglong.platform.utils.DnsDomainNameUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;

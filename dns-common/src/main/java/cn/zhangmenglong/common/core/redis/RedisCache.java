@@ -139,7 +139,7 @@ public class RedisCache
     public <T> long setCacheList(final String key, final List<T> dataList)
     {
         Long count = redisTemplate.opsForList().rightPushAll(key, dataList);
-        return count == null ? 0 : count;
+        return count == null ? Long.valueOf(0) : count;
     }
 
     /**

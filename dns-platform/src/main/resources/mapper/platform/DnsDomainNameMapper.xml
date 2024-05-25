@@ -32,6 +32,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="domainNameDnssec != null"> and domain_name_dnssec = #{domainNameDnssec}</if>
             <if test="domainNameStatus != null and domainNameStatus != ''"> and domain_name_status = #{domainNameStatus}</if>
         </where>
+        ORDER BY id DESC
+    </select>
+
+    <select id="selectDnsDomainNameStatisticsCountByUserId" parameterType="Long" resultType="Map">
+        SELECT COUNT(1) AS domainNameCount, COUNT(IF(domain_name_dnssec = '1', 1, NULL)) AS enableDnssecCount, COUNT(IF(domain_name_status = '0', 1, NULL)) AS domainNameStatusNormalCount FROM dns_domain_name WHERE user_id = #{userId}
     </select>
     
     <select id="selectDnsDomainNameById" parameterType="Long" resultMap="DnsDomainNameResult">

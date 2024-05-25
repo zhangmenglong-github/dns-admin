@@ -40,8 +40,83 @@ public class DnsDomainNameController extends BaseController
      * 查询域名列表
      */
     @PreAuthorize("@ss.hasPermi('platform:dnsDomainName:list')")
-    @GetMapping("/list")
+    @GetMapping("/list/statistics/count")
+    public AjaxResult listStatisticsCount()
+    {
+        return AjaxResult.success(dnsDomainNameService.selectDnsDomainNameStatisticsCountByUserId(SecurityUtils.getUserId()));
+    }
+
+    /**
+     * 查询域名列表
+     */
+    @PreAuthorize("@ss.hasPermi('platform:dnsDomainName:list')")
+    @GetMapping("/list/normal")
     public TableDataInfo list(DnsDomainName dnsDomainName)
+    {
+        startPage();
+        dnsDomainName.setDomainNameStatus("0");
+        List<DnsDomainName> list = dnsDomainNameService.selectDnsDomainNameList(dnsDomainName);
+        return getDataTable(list);
+    }
+
+
+    /**
+     * 查询域名解析统计信息
+     */
+    @PreAuthorize("@ss.hasPermi('platform:dnsDomainName:list')")
+    @GetMapping("/statistics")
+    public AjaxResult statistics(DnsDomainName dnsDomainName)
+    {
+        return AjaxResult.success(dnsDomainNameService.queryDnsDomainNameResolutionStatistics(dnsDomainName));
+    }
+
+    /**
+     * 查询域名解析地理位置统计信息
+     */
+    @PreAuthorize("@ss.hasPermi('platform:dnsDomainName:list')")
+    @GetMapping("/statistics/geo")
+    public AjaxResult statisticsQueryGeo(DnsDomainName dnsDomainName)
+    {
+        return AjaxResult.success(dnsDomainNameService.queryDnsDomainNameResolutionStatisticsQueryGeo(dnsDomainName));
+    }
+
+
+    /**
+     * 查询域名子域解析统计信息
+     */
+    @PreAuthorize("@ss.hasPermi('platform:dnsDomainName:list')")
+    @GetMapping("/statistics/query/name")
+    public AjaxResult statisticsQueryName(DnsDomainName dnsDomainName)
+    {
+        return AjaxResult.success(dnsDomainNameService.queryDnsDomainNameResolutionStatisticsQueryName(dnsDomainName));
+    }
+
+    /**
+     * 查询域名解析类型统计信息
+     */
+    @PreAuthorize("@ss.hasPermi('platform:dnsDomainName:list')")
+    @GetMapping("/statistics/query/type")
+    public AjaxResult statisticsQueryType(DnsDomainName dnsDomainName)
+    {
+        return AjaxResult.success(dnsDomainNameService.queryDnsDomainNameResolutionStatisticsQueryType(dnsDomainName));
+    }
+
+    /**
+     * 查询域名子域解析类型统计信息
+     */
+    @PreAuthorize("@ss.hasPermi('platform:dnsDomainName:list')")
+    @GetMapping("/statistics/query/name/type")
+    public AjaxResult statisticsQueryNameType(DnsDomainName dnsDomainName)
+    {
+        return AjaxResult.success(dnsDomainNameService.queryDnsDomainNameResolutionStatisticsQueryNameType(dnsDomainName));
+    }
+
+    /**
+     * 查询域名列表
+     */
+    @PreAuthorize("@ss.hasPermi('platform:dnsDomainName:list')")
+    @GetMapping("/list")
+    public TableDataInfo listNormalDnsDomainName(DnsDomainName dnsDomainName)
     {
         startPage();
         List<DnsDomainName> list = dnsDomainNameService.selectDnsDomainNameList(dnsDomainName);
@@ -52,7 +127,7 @@ public class DnsDomainNameController extends BaseController
      * 导出域名列表
      */
     @PreAuthorize("@ss.hasPermi('platform:dnsDomainName:export')")
-    @Log(title = "域名", businessType = BusinessType.EXPORT)
+    @Log(title = "域名导出", businessType = BusinessType.EXPORT)
     @PostMapping("/export")
     public void export(HttpServletResponse response, DnsDomainName dnsDomainName)
     {
@@ -66,7 +141,7 @@ public class DnsDomainNameController extends BaseController
      * 新增域名
      */
     @PreAuthorize("@ss.hasPermi('platform:dnsDomainName:add')")
-    @Log(title = "域名", businessType = BusinessType.INSERT)
+    @Log(title = "域名添加", businessType = BusinessType.INSERT)
     @PostMapping
     public AjaxResult add(@RequestBody DnsDomainName dnsDomainName)
     {
@@ -77,7 +152,7 @@ public class DnsDomainNameController extends BaseController
      * 验证域名
      */
     @PreAuthorize("@ss.hasPermi('platform:dnsDomainName:edit')")
-    @Log(title = "域名", businessType = BusinessType.UPDATE)
+    @Log(title = "域名验证", businessType = BusinessType.UPDATE)
     @PutMapping("/validate")
     public AjaxResult validate(@RequestBody DnsDomainName dnsDomainName)
     {
@@ -88,7 +163,7 @@ public class DnsDomainNameController extends BaseController
      * 刷新域名验证
      */
     @PreAuthorize("@ss.hasPermi('platform:dnsDomainName:edit')")
-    @Log(title = "域名", businessType = BusinessType.UPDATE)
+    @Log(title = "域名验证刷新", businessType = BusinessType.UPDATE)
     @PutMapping("/validate/refresh")
     public AjaxResult validateRefresh(@RequestBody DnsDomainName dnsDomainName)
     {
@@ -99,7 +174,7 @@ public class DnsDomainNameController extends BaseController
      * 修改域名
      */
     @PreAuthorize("@ss.hasPermi('platform:dnsDomainName:edit')")
-    @Log(title = "域名", businessType = BusinessType.UPDATE)
+    @Log(title = "域名DNSSEC修改", businessType = BusinessType.UPDATE)
     @PutMapping("/dnssec")
     public AjaxResult dnssec(@RequestBody DnsDomainName dnsDomainName)
     {
@@ -110,7 +185,7 @@ public class DnsDomainNameController extends BaseController
      * 删除域名
      */
     @PreAuthorize("@ss.hasPermi('platform:dnsDomainName:remove')")
-    @Log(title = "域名", businessType = BusinessType.DELETE)
+    @Log(title = "域名删除", businessType = BusinessType.DELETE)
 	@DeleteMapping("/{ids}")
     public AjaxResult remove(@PathVariable Long[] ids)
     {

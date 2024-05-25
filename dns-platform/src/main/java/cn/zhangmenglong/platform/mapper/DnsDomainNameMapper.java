@@ -1,6 +1,8 @@
 package cn.zhangmenglong.platform.mapper;
 
 import java.util.List;
+import java.util.Map;
+
 import cn.zhangmenglong.platform.domain.po.DnsDomainName;
 
 /**
@@ -11,6 +13,15 @@ import cn.zhangmenglong.platform.domain.po.DnsDomainName;
  */
 public interface DnsDomainNameMapper 
 {
+    /**
+     * 获取域名统计数量
+     *
+     * @param userId 域名
+     * @return 统计信息
+     */
+
+    public Map<String, Integer> selectDnsDomainNameStatisticsCountByUserId(Long userId);
+
     /**
      * 更新域名状态
      *

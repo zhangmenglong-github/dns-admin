@@ -87,7 +87,6 @@ spring:
         max-active: 8
         # #连接池最大阻塞等待时间（使用负值表示没有限制）
         max-wait: -1ms
-
   #mongo数据库配置
   data:
     mongodb:
@@ -150,3 +149,22 @@ wechat:
     secret: a453570a4602ec90eb7c93ec812f2494
     token: 1314520x
     aeskey: Pp9wOa2L4uutkJ3gw5oR5EgRB06oID2ae0rCiRt1NbV
+
+#Tdenging时序数据库
+tdengine:
+  url: jdbc:TAOS://110.42.172.182:6030/dns
+  username: root
+  password: taosdata
+  datasource:
+    minimumIdle: 10
+    maximumPoolSize: 10
+    connectionTimeout: 30000
+    maxLifetime: 0
+    idleTimeout: 0
+    connectionTestQuery: SELECT SERVER_STATUS()
+
+#雪花id
+snowflake:
+  datacenterId: 1
+  machineId: 1
+

@@ -15,6 +15,54 @@ public interface IDnsDomainNameService
 {
 
     /**
+     * 获取域名统计数量
+     *
+     * @param userId 域名
+     * @return 统计信息
+     */
+    public Map<String, Integer> selectDnsDomainNameStatisticsCountByUserId(Long userId);
+
+    /**
+     * 查询域名解析统计
+     *
+     * @param dnsDomainName 域名
+     * @return 域名
+     */
+    public Map<String, Object> queryDnsDomainNameResolutionStatistics(DnsDomainName dnsDomainName);
+
+    /**
+     * 查询域名解析统计
+     *
+     * @param dnsDomainName 域名
+     * @return 域名
+     */
+    public Map<String, Object> queryDnsDomainNameResolutionStatisticsQueryGeo(DnsDomainName dnsDomainName);
+
+    /**
+     * 查询域名解析子域统计
+     *
+     * @param dnsDomainName 域名
+     * @return 域名
+     */
+    public Map<String, Object> queryDnsDomainNameResolutionStatisticsQueryName(DnsDomainName dnsDomainName);
+
+    /**
+     * 查询域名解析类型统计
+     *
+     * @param dnsDomainName 域名
+     * @return 域名
+     */
+    public Map<String, Object> queryDnsDomainNameResolutionStatisticsQueryType(DnsDomainName dnsDomainName);
+
+    /**
+     * 查询域名子域解析类型统计
+     *
+     * @param dnsDomainName 域名
+     * @return 域名
+     */
+    public Map<String, Object> queryDnsDomainNameResolutionStatisticsQueryNameType(DnsDomainName dnsDomainName);
+
+    /**
      * 刷新域名
      *
      * @param dnsDomainName 域名
