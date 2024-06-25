@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 import cn.zhangmenglong.platform.domain.po.DnsDomainName;
+import cn.zhangmenglong.platform.domain.po.DnsDomainNameRecord;
 
 /**
  * 域名Service接口
@@ -11,8 +12,51 @@ import cn.zhangmenglong.platform.domain.po.DnsDomainName;
  * @author dns
  * @date 2024-04-13
  */
-public interface IDnsDomainNameService 
+public interface IDnsDomainNameService
 {
+    /**
+     * 批量删除域名记录
+     *
+     * @param ids 需要删除的域名主键集合
+     * @return 结果
+     */
+    public Map<String, Object> deleteDnsDomainNameRecordByIds(Long[] ids);
+
+    /**
+     * 修改域名记录
+     *
+     * @param dnsDomainNameRecord 域名
+     * @return 结果
+     */
+
+    public Map<String, Object> updateDnsDomainNameRecord(DnsDomainNameRecord dnsDomainNameRecord);
+
+    /**
+     * 获取域名记录
+     *
+     * @param dnsDomainNameRecord 域名
+     * @return 结果
+     */
+
+    public Map<String, Object> getDnsDomainNameRecord(DnsDomainNameRecord dnsDomainNameRecord);
+
+    /**
+     * 添加域名记录
+     *
+     * @param dnsDomainNameRecord 域名
+     * @return 结果
+     */
+
+    public Map<String, Object> insertDnsDomainNameRecord(DnsDomainNameRecord dnsDomainNameRecord);
+
+    /**
+     * 获取域名记录
+     *
+     * @param dnsDomainNameRecord 域名
+     * @return 域名记录列表
+     */
+
+    public List<DnsDomainNameRecord> selectDnsDomainNameRecord(DnsDomainNameRecord dnsDomainNameRecord);
 
     /**
      * 获取域名统计数量

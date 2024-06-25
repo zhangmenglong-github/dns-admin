@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 
 @Component
@@ -85,19 +86,19 @@ public class RabbitMQ {
                 public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
                     ByteArrayInputStream inputStream = new ByteArrayInputStream(body);
                     ObjectInputStream objectInputStream = new ObjectInputStream(inputStream);
-                    Map<String, Object> dnsQueryLog = null;
+                    Map<String, Object> dnsQueryLog;
                     try {
                         dnsQueryLog = (Map<String, Object>) objectInputStream.readObject();
                         tdengineDataSource.insert(dnsQueryLog);
-                        channel.basicAck(envelope.getDeliveryTag(), false);
-                    } catch (Exception ignored) {
-                        channel.basicNack(envelope.getDeliveryTag(), false, true);
-                    }
-                    if (dnsQueryLog != null) {
                         String ipAddress = (String) dnsQueryLog.get("ednsIp");
                         ipAddress = (ipAddress == null) ? (String) dnsQueryLog.get("clientIp") : ipAddress;
                         String countryCode = ipGeoUtils.getCountry(ipAddress);
-                        redisCache.redisTemplate.opsForValue().increment(PlatformDomainNameConstants.RESOLUTION_GEO_STATISTICS_COUNT + DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD, DateUtils.getNowDate()) + ":" + dnsQueryLog.get("queryDomain") + ":" + countryCode);
+                        String key = PlatformDomainNameConstants.RESOLUTION_GEO_STATISTICS_COUNT + DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD, DateUtils.getNowDate()) + ":" + dnsQueryLog.get("queryDomain") + ":" + countryCode;
+                        redisCache.redisTemplate.opsForValue().increment(key);
+                        redisCache.expire(key, 2, TimeUnit.DAYS);
+                        channel.basicAck(envelope.getDeliveryTag(), false);
+                    } catch (Exception ignored) {
+                        channel.basicNack(envelope.getDeliveryTag(), false, true);
                     }
                 }
             };

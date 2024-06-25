@@ -46,7 +46,7 @@ public class TdengineDataSource {
         Connection connection = hikariDataSource.getConnection(); // get connection
         Statement statement = connection.createStatement(); // get statement
         // create table
-        statement.executeUpdate("CREATE STABLE IF NOT EXISTS domain_name_resolution_log (queryTime TIMESTAMP, queryId BIGINT PRIMARY KEY, queryName BINARY(256), queryType TINYINT, ednsIp BINARY(64), clientIp BINARY(64), isUdp BOOL, requestDnssec BOOL, responseDnssec BOOL, dnsMessage VARBINARY(2048)) TAGS (queryDomain BINARY(256))");
+        statement.executeUpdate("CREATE STABLE IF NOT EXISTS domain_name_resolution_log (queryTime TIMESTAMP, queryId BIGINT PRIMARY KEY, queryName BINARY(256), queryType SMALLINT, ednsIp BINARY(64), clientIp BINARY(64), isUdp BOOL, requestDnssec BOOL, responseDnssec BOOL, dnsMessage VARBINARY(2048)) TAGS (queryDomain BINARY(256))");
         statement.close();
         connection.close(); // put back to connection pool
     }
@@ -54,12 +54,13 @@ public class TdengineDataSource {
     public void insert(Map<String, Object> dnsQueryLog) throws SQLException {
         String sql = "INSERT INTO ? USING domain_name_resolution_log TAGS(?) VALUES(?,?,?,?,?,?,?,?,?,?)";
         try (Connection connection = hikariDataSource.getConnection(); TSDBPreparedStatement tsdbPreparedStatement = connection.prepareStatement(sql).unwrap(TSDBPreparedStatement.class)) {
-            tsdbPreparedStatement.setTableName("domain_" + Md5Utils.hash((String) dnsQueryLog.get("queryDomain")));
-            tsdbPreparedStatement.setTagString(0, (String) dnsQueryLog.get("queryDomain"));
+            String queryDomain = ((String) dnsQueryLog.get("queryDomain")).toLowerCase();
+            tsdbPreparedStatement.setTableName("domain_" + Md5Utils.hash(queryDomain));
+            tsdbPreparedStatement.setTagString(0, queryDomain);
             tsdbPreparedStatement.setTimestamp(0, new ArrayList<>(Collections.singletonList((Long) dnsQueryLog.get("queryTime"))));
             tsdbPreparedStatement.setLong(1, new ArrayList<>(Collections.singletonList(snowFlakeUtils.nextId())));
-            tsdbPreparedStatement.setString(2, new ArrayList<>(Collections.singletonList((String) dnsQueryLog.get("queryName"))), 256);
-            tsdbPreparedStatement.setByte(3, new ArrayList<>(Collections.singletonList(Byte.parseByte(((Integer) dnsQueryLog.get("queryType")).toString()))));
+            tsdbPreparedStatement.setString(2, new ArrayList<>(Collections.singletonList(((String) dnsQueryLog.get("queryName")).toLowerCase())), 256);
+            tsdbPreparedStatement.setShort(3, new ArrayList<>(Collections.singletonList(Short.parseShort(((Integer) dnsQueryLog.get("queryType")).toString()))));
             tsdbPreparedStatement.setString(4, new ArrayList<>(Collections.singletonList((String) dnsQueryLog.get("ednsIp"))), 64);
             tsdbPreparedStatement.setString(5, new ArrayList<>(Collections.singletonList((String) dnsQueryLog.get("clientIp"))), 64);
             tsdbPreparedStatement.setBoolean(6, new ArrayList<>(Collections.singletonList(((Boolean) dnsQueryLog.get("isUdp")) ? true : null)));

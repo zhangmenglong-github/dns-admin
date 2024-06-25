@@ -12,6 +12,9 @@ import org.xbill.DNS.Record;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.net.IDN;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
@@ -21,6 +24,7 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.time.Instant;
 import java.util.*;
+import java.util.regex.Pattern;
 
 @Component
 public class DnsDomainNameUtils {
@@ -30,6 +34,75 @@ public class DnsDomainNameUtils {
 
     @Autowired
     private DnsDomainNameRecordMapper dnsDomainNameRecordMapper;
+
+    private final Pattern ipv4Pattern = Pattern.compile("^((1?[1-9]?\\d|[1-2][0-4]\\d|25[0-5])\\.){3}(1?[1-9]?\\d|[1-2][0-4]\\d|25[0-5])$");
+
+    private final Pattern ipv6Pattern = Pattern.compile("^\\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:)))(%.+)?\\s*$");
+
+    private final Pattern emailPattern = Pattern.compile("^[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+(\\.[a-zA-Z0-9_-]+)+$");
+
+    public InetAddress getIpv4Address(String ipv4) {
+        try {
+            return ipv4Pattern.matcher(ipv4).find() ? InetAddress.getByName(ipv4) : null;
+        } catch (UnknownHostException e) {
+            return null;
+        }
+    }
+
+    public InetAddress getIpv6Address(String ipv6) {
+        try {
+            return ipv6Pattern.matcher(ipv6).find() ? InetAddress.getByName(ipv6) : null;
+        } catch (UnknownHostException e) {
+            return null;
+        }
+    }
+
+    public String emailToPunycode(String email) {
+        //将域名中的中文。替换为.
+        email = email.replaceAll("。", ".");
+        //将域名分割为不同段落
+        String[] emailSection = email.split("\\.");
+        //储存punycode后的域名
+        StringBuilder emailBuilder = new StringBuilder();
+        try {
+            //循环拼接转换后的域名
+            for (String nameSection : emailSection) {
+                emailBuilder.append(IDN.toASCII(nameSection)).append(".");
+            }
+            emailBuilder.deleteCharAt(emailBuilder.length() - 1);
+            //如果转换后的邮箱不符合格式就抛出异常
+            if (!emailPattern.matcher(emailBuilder.toString()).find()) {
+                return null;
+            }
+        } catch (Exception exception) {
+            return null;
+        }
+        return emailBuilder.toString().toLowerCase();
+    }
+
+    public String nameToPunycode(String domainName) {
+        //将域名中的中文。替换为.
+        domainName = domainName.replaceAll("。", ".");
+        //将域名结尾替换为.
+        domainName = domainName.endsWith(".") ? domainName : domainName + ".";
+        //将域名分割为不同段落
+        String[] dnsDomainNameSection = domainName.split("\\.");
+        //储存punycode后的域名
+        StringBuilder domainNameBuilder = new StringBuilder();
+        try {
+            //循环拼接转换后的域名
+            for (String nameSection : dnsDomainNameSection) {
+                domainNameBuilder.append(IDN.toASCII(nameSection)).append(".");
+            }
+            //如果转换后的域名不符合格式就抛出异常
+            if (!domainNameBuilder.toString().matches("^[.a-zA-Z0-9_-]+$")) {
+                return null;
+            }
+        } catch (Exception exception) {
+            return null;
+        }
+        return domainNameBuilder.toString().toLowerCase();
+    }
 
     private void dnssecSign(List<Record> recordList, PrivateKey kskPrivateKey, DNSKEYRecord kskDnskeyRecord, PrivateKey zskPrivateKey, DNSKEYRecord zskDnskeyRecord) throws DNSSEC.DNSSECException {
 
@@ -114,7 +187,7 @@ public class DnsDomainNameUtils {
 
     }
 
-    public void deleteZone(DnsDomainName dnsDomainName) throws NoSuchAlgorithmException, InvalidKeySpecException, IOException, DNSSEC.DNSSECException {
+    public void deleteZone(DnsDomainName dnsDomainName) throws IOException {
         Map<String, Object> zoneMap = new HashMap<>();
         zoneMap.put("domain", dnsDomainName.getDomainName());
         zoneMap.put("type", "delete");
@@ -122,7 +195,6 @@ public class DnsDomainNameUtils {
         ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
         objectOutputStream.writeObject(zoneMap);
         rabbitMQ.send(byteArrayOutputStream.toByteArray(), "");
-
     }
 
 

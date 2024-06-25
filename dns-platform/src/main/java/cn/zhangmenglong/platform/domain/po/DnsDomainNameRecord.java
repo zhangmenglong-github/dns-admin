@@ -1,5 +1,8 @@
 package cn.zhangmenglong.platform.domain.po;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import cn.zhangmenglong.common.annotation.Excel;
@@ -16,10 +19,11 @@ public class DnsDomainNameRecord extends BaseEntity
     private static final long serialVersionUID = 1L;
 
     /** id */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
 
     /** 域名id */
-    @Excel(name = "域名id")
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long domainNameId;
 
     /** 记录名 */
@@ -27,11 +31,11 @@ public class DnsDomainNameRecord extends BaseEntity
     private String recordName;
 
     /** 记录类型 */
-    @Excel(name = "记录类型")
-    private String recordType;
+    @Excel(name = "记录类型", dictType = "record_type")
+    private Integer recordType;
 
     /** 记录类型 */
-    @Excel(name = "记录地理位置")
+    @Excel(name = "记录地理位置", dictType = "geo_code")
     private String recordGeo;
 
     /** 记录TTL */
@@ -43,7 +47,7 @@ public class DnsDomainNameRecord extends BaseEntity
     private String recordValue;
 
     /** 记录内容 */
-    @Excel(name = "记录内容")
+    @JsonIgnore
     private String recordContent;
 
     public void setId(Long id) 
@@ -73,12 +77,12 @@ public class DnsDomainNameRecord extends BaseEntity
     {
         return recordName;
     }
-    public void setRecordType(String recordType) 
+    public void setRecordType(Integer recordType)
     {
         this.recordType = recordType;
     }
 
-    public String getRecordType() 
+    public Integer getRecordType()
     {
         return recordType;
     }

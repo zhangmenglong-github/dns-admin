@@ -1,6 +1,8 @@
 package cn.zhangmenglong.platform.domain.po;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import cn.zhangmenglong.common.annotation.Excel;
@@ -17,9 +19,11 @@ public class DnsDomainName extends BaseEntity
     private static final long serialVersionUID = 1L;
 
     /** id */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
 
     /** 用户id */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long userId;
 
     /** 域名 */

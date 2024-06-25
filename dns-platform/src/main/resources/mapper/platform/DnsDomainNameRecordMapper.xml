@@ -13,10 +13,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="recordTtl"    column="record_ttl"    />
         <result property="recordValue"    column="record_value"    />
         <result property="recordContent"    column="record_content"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
     </resultMap>
 
     <sql id="selectDnsDomainNameRecordVo">
-        select id, domain_name_id, record_name, record_type, record_geo, record_ttl, record_value, record_content from dns_domain_name_record
+        select id, domain_name_id, record_name, record_type, record_geo, record_ttl, record_value, record_content, create_time, update_time from dns_domain_name_record
     </sql>
 
     <select id="selectDnsDomainNameRecordList" parameterType="DnsDomainNameRecord" resultMap="DnsDomainNameRecordResult">
@@ -39,7 +41,22 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     
     <select id="selectDnsDomainNameRecordById" parameterType="Long" resultMap="DnsDomainNameRecordResult">
         <include refid="selectDnsDomainNameRecordVo"/>
-        where id = #{id}
+        where id = #{id} limit 1
+    </select>
+
+    <select id="selectDnsDomainNameRecordByRecordName" parameterType="String" resultMap="DnsDomainNameRecordResult">
+        <include refid="selectDnsDomainNameRecordVo"/>
+        where record_name = #{recordName}
+    </select>
+
+    <select id="selectDnsDomainNameRecordNsRecordByDomainNameId" parameterType="Long" resultMap="DnsDomainNameRecordResult">
+        <include refid="selectDnsDomainNameRecordVo"/>
+        where domain_name_id = #{domainNameId} and record_type = 2
+    </select>
+
+    <select id="selectDnsDomainNameRecordSoaRecordByDomainNameId" parameterType="Long" resultMap="DnsDomainNameRecordResult">
+        <include refid="selectDnsDomainNameRecordVo"/>
+        where domain_name_id = #{domainNameId} and record_type = 6 limit 1
     </select>
         
     <insert id="insertDnsDomainNameRecord" parameterType="DnsDomainNameRecord">
@@ -53,6 +70,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="recordTtl != null">record_ttl,</if>
             <if test="recordValue != null and recordValue != ''">record_value,</if>
             <if test="recordContent != null and recordContent != ''">record_content,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateTime != null">update_time,</if>
          </trim>
         <trim prefix="values (" suffix=")" suffixOverrides=",">
             <if test="id != null">#{id},</if>
@@ -63,6 +82,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="recordTtl != null">#{recordTtl},</if>
             <if test="recordValue != null and recordValue != ''">#{recordValue},</if>
             <if test="recordContent != null and recordContent != ''">#{recordContent},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
          </trim>
     </insert>
 
@@ -76,6 +97,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="recordTtl != null">record_ttl = #{recordTtl},</if>
             <if test="recordValue != null and recordValue != ''">record_value = #{recordValue},</if>
             <if test="recordContent != null and recordContent != ''">record_content = #{recordContent},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
         </trim>
         where id = #{id}
     </update>

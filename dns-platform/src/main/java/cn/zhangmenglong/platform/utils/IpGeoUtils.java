@@ -10,6 +10,7 @@ import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ResourceUtils;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 
@@ -19,8 +20,7 @@ public class IpGeoUtils {
     private DatabaseReader reader;
     public IpGeoUtils() {
         try {
-
-            reader = new DatabaseReader.Builder(ResourceUtils.getFile("classpath:geo.mmdb")).withCache(new CHMCache()).build();
+            reader = new DatabaseReader.Builder(new File("./geo.mmdb")).withCache(new CHMCache()).build();
         } catch (IOException e) {
             e.printStackTrace();
         }

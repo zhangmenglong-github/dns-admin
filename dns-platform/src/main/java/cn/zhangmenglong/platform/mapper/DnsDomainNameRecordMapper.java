@@ -11,6 +11,25 @@ import cn.zhangmenglong.platform.domain.po.DnsDomainNameRecord;
  */
 public interface DnsDomainNameRecordMapper 
 {
+
+    /**
+     * 查询域名SOA记录
+     *
+     * @param domainNameId 域名记录主键
+     * @return 域名记录
+     */
+    public DnsDomainNameRecord selectDnsDomainNameRecordSoaRecordByDomainNameId(Long domainNameId);
+
+
+
+    /**
+     * 查询域名NS记录
+     *
+     * @param domainNameId 域名记录主键
+     * @return 域名记录
+     */
+    public List<DnsDomainNameRecord> selectDnsDomainNameRecordNsRecordByDomainNameId(Long domainNameId);
+
     /**
      * 查询域名记录
      * 
@@ -18,6 +37,14 @@ public interface DnsDomainNameRecordMapper
      * @return 域名记录
      */
     public DnsDomainNameRecord selectDnsDomainNameRecordById(Long id);
+
+    /**
+     * 查询域名记录
+     *
+     * @param recordName 域名记录主键
+     * @return 域名记录
+     */
+    public List<DnsDomainNameRecord> selectDnsDomainNameRecordByRecordName(String recordName);
 
     /**
      * 查询域名记录列表

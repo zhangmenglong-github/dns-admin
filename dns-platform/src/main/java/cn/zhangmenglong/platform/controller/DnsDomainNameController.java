@@ -4,6 +4,7 @@ import java.util.List;
 import javax.servlet.http.HttpServletResponse;
 
 import cn.zhangmenglong.common.utils.SecurityUtils;
+import cn.zhangmenglong.platform.domain.po.DnsDomainNameRecord;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,6 +23,7 @@ import cn.zhangmenglong.platform.domain.po.DnsDomainName;
 import cn.zhangmenglong.platform.service.IDnsDomainNameService;
 import cn.zhangmenglong.common.utils.poi.ExcelUtil;
 import cn.zhangmenglong.common.core.page.TableDataInfo;
+import org.xbill.DNS.Type;
 
 /**
  * 域名Controller
@@ -37,7 +39,76 @@ public class DnsDomainNameController extends BaseController
     private IDnsDomainNameService dnsDomainNameService;
 
     /**
-     * 查询域名列表
+     * 导出域名记录列表
+     */
+    @PreAuthorize("@ss.hasPermi('platform:dnsDomainName:export')")
+    @Log(title = "域名记录导出", businessType = BusinessType.EXPORT)
+    @PostMapping("/record/export")
+    public void export(HttpServletResponse response, DnsDomainNameRecord dnsDomainNameRecord)
+    {
+        List<DnsDomainNameRecord> list = dnsDomainNameService.selectDnsDomainNameRecord(dnsDomainNameRecord);
+        ExcelUtil<DnsDomainNameRecord> util = new ExcelUtil<DnsDomainNameRecord>(DnsDomainNameRecord.class);
+        util.exportExcel(response, list, "域名记录数据");
+    }
+
+
+    /**
+     * 删除域名
+     */
+    @PreAuthorize("@ss.hasPermi('platform:dnsDomainName:remove')")
+    @Log(title = "域名记录删除", businessType = BusinessType.DELETE)
+    @DeleteMapping("/record/{ids}")
+    public AjaxResult removeRecords(@PathVariable Long[] ids)
+    {
+        return AjaxResult.success(dnsDomainNameService.deleteDnsDomainNameRecordByIds(ids));
+    }
+
+
+    /**
+     * 查询域名纪录列表
+     */
+    @PreAuthorize("@ss.hasPermi('platform:dnsDomainName:edit')")
+    @Log(title = "修改域名记录", businessType = BusinessType.UPDATE)
+    @PostMapping("/record/update")
+    public AjaxResult updateRecord(@RequestBody DnsDomainNameRecord dnsDomainNameRecord)
+    {
+        return AjaxResult.success(dnsDomainNameService.updateDnsDomainNameRecord(dnsDomainNameRecord));
+    }
+
+    /**
+     * 查询域名纪录列表
+     */
+    @PreAuthorize("@ss.hasPermi('platform:dnsDomainName:list')")
+    @GetMapping("/record/get")
+    public AjaxResult getRecord(DnsDomainNameRecord dnsDomainNameRecord)
+    {
+        return AjaxResult.success(dnsDomainNameService.getDnsDomainNameRecord(dnsDomainNameRecord));
+    }
+
+    /**
+     * 查询域名纪录列表
+     */
+    @PreAuthorize("@ss.hasPermi('platform:dnsDomainName:add')")
+    @Log(title = "添加域名记录", businessType = BusinessType.INSERT)
+    @PostMapping("/record/add")
+    public AjaxResult addRecord(@RequestBody DnsDomainNameRecord dnsDomainNameRecord)
+    {
+        return AjaxResult.success(dnsDomainNameService.insertDnsDomainNameRecord(dnsDomainNameRecord));
+    }
+
+    /**
+     * 查询域名纪录列表
+     */
+    @PreAuthorize("@ss.hasPermi('platform:dnsDomainName:list')")
+    @GetMapping("/record/list")
+    public TableDataInfo listRecord(DnsDomainNameRecord dnsDomainNameRecord)
+    {
+        List<DnsDomainNameRecord> list = dnsDomainNameService.selectDnsDomainNameRecord(dnsDomainNameRecord);
+        return getDataTable(list);
+    }
+
+    /**
+     * 查询域名统计数量
      */
     @PreAuthorize("@ss.hasPermi('platform:dnsDomainName:list')")
     @GetMapping("/list/statistics/count")
@@ -47,11 +118,11 @@ public class DnsDomainNameController extends BaseController
     }
 
     /**
-     * 查询域名列表
+     * 查询域名正常数量
      */
     @PreAuthorize("@ss.hasPermi('platform:dnsDomainName:list')")
     @GetMapping("/list/normal")
-    public TableDataInfo list(DnsDomainName dnsDomainName)
+    public TableDataInfo listNormalDnsDomainName(DnsDomainName dnsDomainName)
     {
         startPage();
         dnsDomainName.setDomainNameStatus("0");
@@ -116,7 +187,7 @@ public class DnsDomainNameController extends BaseController
      */
     @PreAuthorize("@ss.hasPermi('platform:dnsDomainName:list')")
     @GetMapping("/list")
-    public TableDataInfo listNormalDnsDomainName(DnsDomainName dnsDomainName)
+    public TableDataInfo list(DnsDomainName dnsDomainName)
     {
         startPage();
         List<DnsDomainName> list = dnsDomainNameService.selectDnsDomainNameList(dnsDomainName);

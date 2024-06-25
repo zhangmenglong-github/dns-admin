@@ -15,6 +15,7 @@ import cn.zhangmenglong.platform.constant.PlatformUserRegisterConstants;
 import cn.zhangmenglong.platform.domain.DnsDomainNameWechatWithUser;
 import cn.zhangmenglong.platform.mapper.DnsDomainNameWechatWithUserMapper;
 import cn.zhangmenglong.platform.service.IPlatformUserService;
+import cn.zhangmenglong.platform.utils.SnowFlakeUtils;
 import cn.zhangmenglong.system.service.ISysRoleService;
 import cn.zhangmenglong.system.service.ISysUserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +36,9 @@ public class PlatformUserServiceImpl implements IPlatformUserService {
 
     @Autowired
     private DnsDomainNameWechatWithUserMapper dnsDomainNameWechatWithUserMapper;
+
+    @Autowired
+    private SnowFlakeUtils snowFlakeUtils;
 
     @Transactional
     @Override
@@ -64,6 +68,7 @@ public class PlatformUserServiceImpl implements IPlatformUserService {
                 {
                     sysUser.setNickName(username);
                     sysUser.setPassword(SecurityUtils.encryptPassword(password));
+                    sysUser.setUserId(snowFlakeUtils.nextId());
                     boolean regFlag = userService.registerUser(sysUser);
                     if (!regFlag)
                     {

@@ -70,11 +70,11 @@ spring:
     # 地址
     host: localhost
     # 端口，默认为6379
-    port: 6379
+    port: port
     # 数据库索引
     database: 0
     # 密码
-    password:
+    password: password
     # 连接超时时间
     timeout: 10s
     lettuce:
@@ -90,14 +90,14 @@ spring:
   #mongo数据库配置
   data:
     mongodb:
-      uri: mongodb://dns:1314520..x@localhost:27017/dns
+      uri: mongodb://root:password@localhost:37017/dns
 
 # token配置
 token:
   # 令牌自定义标识
   header: Authorization
   # 令牌密钥
-  secret: abcdefghijklmnopqrstuvwxyz
+  secret: secret
   # 令牌有效期（默认30分钟）
   expireTime: 30
 
@@ -134,10 +134,10 @@ xss:
 
 # 消息队列
 rabbitmq:
-  host: 117.50.175.99
-  port: 5672
-  username: zhangmenglong
-  password: 1314520..w
+  host: localhost
+  port: port
+  username: root
+  password: password
   mq-server-admin-init-queue: admin-queue
   mq-server-authoritative-update-exchange: authoritative-update
   mq-server-authoritative-statistics-queue: statistics-queue
@@ -145,16 +145,16 @@ rabbitmq:
 #微信
 wechat:
   mp:
-    appid: wxc847fa7ecd48c9a2
-    secret: a453570a4602ec90eb7c93ec812f2494
-    token: 1314520x
-    aeskey: Pp9wOa2L4uutkJ3gw5oR5EgRB06oID2ae0rCiRt1NbV
+    appid: appid
+    secret: secret
+    token: token
+    aeskey: aeskey
 
 #Tdenging时序数据库
 tdengine:
-  url: jdbc:TAOS://110.42.172.182:6030/dns
+  url: jdbc:TAOS://localhost:port/dns
   username: root
-  password: taosdata
+  password: password
   datasource:
     minimumIdle: 10
     maximumPoolSize: 10

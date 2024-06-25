@@ -57,6 +57,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <insert id="insertDnsDomainName" parameterType="DnsDomainName" useGeneratedKeys="true" keyProperty="id">
         insert into dns_domain_name
         <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">id,</if>
             <if test="userId != null">user_id,</if>
             <if test="domainName != null and domainName != ''">domain_name,</if>
             <if test="domainNameDnssec != null">domain_name_dnssec,</if>
@@ -71,6 +72,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="updateTime != null">update_time,</if>
          </trim>
         <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="id != null">#{id},</if>
             <if test="userId != null">#{userId},</if>
             <if test="domainName != null and domainName != ''">#{domainName},</if>
             <if test="domainNameDnssec != null">#{domainNameDnssec},</if>
